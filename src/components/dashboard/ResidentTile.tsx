@@ -1,8 +1,10 @@
 "use client";
 
-import type { Alert, Resident } from "@/lib/types";
+import type { Alert, MotionState, Resident } from "@/lib/types";
 import PulseLine from "./PulseLine";
 import { ALERT_LABEL, OK_STROKE, PRIORITY } from "./util";
+
+const MOTION_LABEL: Record<MotionState, string> = { moving: "Moving", still: "Still", lying: "Lying" };
 
 export default function ResidentTile({
   resident,
@@ -30,7 +32,7 @@ export default function ResidentTile({
       onClick={() => onSelect(resident.id)}
       aria-label={`Room ${resident.room}, ${resident.name}, ${heartRate} bpm${hrWarning ? " (HR warning)" : ""}${
         alert ? `, ${PRIORITY[alert.priority].label} ${ALERT_LABEL[alert.type]}` : ", OK"
-      } — open quick info`}
+      }${resident.motionState ? `, ${MOTION_LABEL[resident.motionState]}` : ""} — open quick info`}
       className={`relative rounded-lg border-2 bg-slate-900/80 text-left ${lg ? "p-4" : "p-2.5"} transition hover:bg-slate-800/80 ${
         p ? p.border : "border-emerald-500/30"
       } ${flash}`}
@@ -39,9 +41,22 @@ export default function ResidentTile({
         <span className={`font-semibold tracking-wide text-slate-400 ${lg ? "text-sm" : "text-[11px]"}`}>
           ROOM {resident.room}
         </span>
-        {!resident.canSpeak && (
-          <span className={`text-slate-500 ${lg ? "text-xs" : "text-[10px]"}`}>non-verbal</span>
-        )}
+        <span className="flex items-center gap-1.5">
+          {!resident.canSpeak && (
+            <span className={`text-slate-500 ${lg ? "text-xs" : "text-[10px]"}`}>non-verbal</span>
+          )}
+          {resident.motionState && (
+            // Neutral chip: red/yellow are reserved for alarms, green for OK.
+            <span
+              title="Motion from the band"
+              className={`rounded border border-slate-600 bg-slate-800/80 font-medium text-slate-300 ${
+                lg ? "px-1.5 py-0.5 text-xs" : "px-1 text-[10px]"
+              }`}
+            >
+              {MOTION_LABEL[resident.motionState]}
+            </span>
+          )}
+        </span>
       </div>
       <div className={`truncate font-medium text-slate-100 ${lg ? "text-2xl" : "text-sm"}`}>{resident.name}</div>
       <PulseLine heartRate={resident.heartRate} color={p ? p.stroke : OK_STROKE} height={lg ? 72 : 32} />

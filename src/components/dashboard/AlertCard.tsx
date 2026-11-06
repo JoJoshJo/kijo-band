@@ -61,7 +61,7 @@ export default function AlertCard({
 
   return (
     <article
-      className={`kijo-card-enter relative overflow-hidden rounded-lg bg-slate-900/90 p-3 pl-4 ${
+      className={`kijo-card-enter relative shrink-0 overflow-hidden rounded-lg bg-slate-900/90 p-3 pl-4 ${
         escalatedTo ? `border-2 border-red-500 ${isOpen ? "kijo-border-flash" : ""}` : "border border-slate-700"
       }`}
     >
