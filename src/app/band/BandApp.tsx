@@ -26,7 +26,13 @@ import {
   Translate,
   type Icon,
 } from "@phosphor-icons/react";
-import { useMotionDetection, type MotionDebug } from "./_lib/useMotionDetection";
+import {
+  motionAllowed,
+  requestMotionPermission,
+  useMotionDetection,
+  type MotionDebug,
+  type MotionPermission,
+} from "./_lib/useMotionDetection";
 import { useVoiceTrigger, type VoiceProblem, type VoiceSnapshot } from "./_lib/useVoiceTrigger";
 import { isEmergency } from "@/lib/detection/voice";
 import PulseCheck from "./PulseCheck";
@@ -281,7 +287,9 @@ function Band({ residentId, embedded }: { residentId: string; embedded: boolean 
     },
     [sendAlert],
   );
-  const motion = useMotionDetection(started && !embedded, (e) => {
+  // The devicemotion listener is attached only once motion access is granted (or not needed).
+  const [motionPerm, setMotionPerm] = useState<MotionPermission>("unknown");
+  const motion = useMotionDetection(started && !embedded && motionAllowed(motionPerm), (e) => {
     if (fallPendingRef.current) return; // already asking "Are you OK?"
     if (e.type === "fall") {
       startFallRef.current("detector");
@@ -418,28 +426,24 @@ function Band({ residentId, embedded }: { residentId: string; embedded: boolean 
     }
   }, []);
 
-  const [motionDenied, setMotionDenied] = useState(false);
   const handleStart = useCallback(async () => {
-    // iOS: everything that needs the user gesture is CALLED synchronously here, before any await —
-    // the motion permission prompt and the speech recognizer (which asks for the microphone itself).
-    const DME = typeof DeviceMotionEvent !== "undefined"
-      ? (DeviceMotionEvent as unknown as { requestPermission?: () => Promise<PermissionState> })
-      : undefined;
-    let motionPermission: Promise<PermissionState> | null = null;
-    try {
-      motionPermission = DME?.requestPermission ? DME.requestPermission() : null;
-    } catch {
-      motionPermission = Promise.resolve("denied");
-    }
+    // iOS / iPadOS: the motion permission request is the VERY FIRST call in the tap, synchronously,
+    // then the speech recognizer (also needs the gesture). Only after both: any await.
+    const motionAsk = requestMotionPermission();
     if (canSpeak) voice.arm();
-    if (motionPermission) {
-      const state = await motionPermission.catch(() => "denied" as PermissionState);
-      if (process.env.NODE_ENV !== "production") console.debug(`[motion] permission ${state}`);
-      setMotionDenied(state !== "granted"); // falls can't be detected; buttons still work
-    }
+    setMotionPerm("pending");
+    const state = await motionAsk;
+    if (process.env.NODE_ENV !== "production") console.debug(`[motion] permission ${state}`);
+    setMotionPerm(state); // not allowed: falls / shake can't be detected; buttons still work
     await requestWakeLock();
     setStarted(true);
   }, [canSpeak, voice, requestWakeLock]);
+  /** "Try again" tap after motion access was denied: ask again inside this tap. */
+  const retryMotion = useCallback(async () => {
+    const ask = requestMotionPermission();
+    setMotionPerm("pending");
+    setMotionPerm(await ask);
+  }, []);
 
   useEffect(() => {
     if (!started) return;
@@ -521,7 +525,8 @@ function Band({ residentId, embedded }: { residentId: string; embedded: boolean 
           paused={speaking}
           needsTap={voice.needsTap}
           problem={voice.problem}
-          motionDenied={motionDenied && !embedded}
+          motionDenied={started && !embedded && motionPerm !== "pending" && motionPerm !== "unknown" && !motionAllowed(motionPerm)}
+          onRetryMotion={() => void retryMotion()}
           onResume={() => voice.arm()}
         />
 
@@ -583,7 +588,7 @@ function Band({ residentId, embedded }: { residentId: string; embedded: boolean 
             rateLimited={rateLimitedAt > 0 && now - rateLimitedAt < 5000}
           />
         )}
-        {debug && <MotionDebugPanel read={motion.debug} />}
+        {debug && <MotionDebugPanel read={motion.debug} permission={motionPerm} />}
 
         {pulseOpen && <PulseCheck t={t} onClose={() => setPulseOpen(false)} onResult={onPulseResult} />}
 
@@ -644,7 +649,7 @@ function VoiceDebug({
 }
 
 /** ?debug=1 only: shake / fall detector, refreshed 4× a second. */
-function MotionDebugPanel({ read }: { read: () => MotionDebug }) {
+function MotionDebugPanel({ read, permission }: { read: () => MotionDebug; permission: MotionPermission }) {
   const [d, setD] = useState<MotionDebug | null>(null);
   useEffect(() => {
     const id = setInterval(() => setD(read()), 250);
@@ -652,7 +657,8 @@ function MotionDebugPanel({ read }: { read: () => MotionDebug }) {
   }, [read]);
   if (!d) return null;
   const rows: [string, string][] = [
-    ["motion", d.attached ? `${d.hz} Hz${d.hz === 0 ? " · no samples (permission?)" : ""}` : "not started"],
+    ["permission", permission],
+    ["motion", d.attached ? `${d.hz} events/s${d.hz === 0 ? " · no samples arriving" : ""}` : "listener off"],
     ["peak", `${d.peakG.toFixed(2)} g dynamic · ${d.peaks} peak${d.peaks === 1 ? "" : "s"} in 1.5 s`],
     ["detector", `${d.decision || "—"} · fall path ${d.fall}`],
   ];
@@ -677,6 +683,7 @@ function VoiceStatus({
   needsTap,
   problem,
   motionDenied,
+  onRetryMotion,
   onResume,
 }: {
   t: BandStrings;
@@ -687,6 +694,7 @@ function VoiceStatus({
   needsTap: boolean;
   problem: VoiceProblem | null;
   motionDenied: boolean;
+  onRetryMotion: () => void;
   onResume: () => void;
 }) {
   const hint = canSpeak && problem
@@ -719,7 +727,17 @@ function VoiceStatus({
         </div>
       )}
       {hint && <p className="text-center text-xl text-warn">{hint}</p>}
-      {motionDenied && <p className="text-center text-xl text-warn">{t.motionDenied}</p>}
+      {motionDenied && (
+        <>
+          <p className="text-center text-xl text-warn">{t.motionDenied}</p>
+          <button
+            onClick={onRetryMotion}
+            className={`min-h-14 rounded-btn border-2 border-line-2 bg-surface-2 px-6 text-xl font-semibold active:scale-95 ${FOCUS}`}
+          >
+            {t.pulseRetry}
+          </button>
+        </>
+      )}
     </div>
   );
 }

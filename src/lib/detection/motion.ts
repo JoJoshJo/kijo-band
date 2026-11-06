@@ -120,14 +120,30 @@ export class MotionDetector {
     this.peakArmed = true;
   }
 
+  /** m/s² per unit of the incoming samples: G if a browser reports in g (resting magnitude ≈ 1), else 1. */
+  private unitScale: number | null = null;
+  private unitProbe: number[] = [];
+
   push(sample: MotionSample): MotionEvent | null {
-    const { x, y, z, t } = sample;
-    if (![x, y, z, t].every(Number.isFinite)) return null;
+    if (![sample.x, sample.y, sample.z, sample.t].every(Number.isFinite)) return null;
+    // Units: the spec (and iOS / Android) say m/s². Guard against a browser reporting g: decide from the
+    // first 30 samples (resting ≈ 9.8 vs ≈ 1). Axis signs don't matter: only magnitudes are used.
+    if (this.unitScale == null) {
+      this.unitProbe.push(Math.hypot(sample.x, sample.y, sample.z));
+      if (this.unitProbe.length < 30) return null;
+      const sorted = [...this.unitProbe].sort((a, b) => a - b);
+      const median = sorted[Math.floor(sorted.length / 2)];
+      this.unitScale = median > 0.5 && median < 2.5 ? G : 1;
+    }
+    const k0 = this.unitScale;
+    // Time: never let it go backwards; iOS can deliver several events with the same timestamp.
+    const t = this.lastT != null && sample.t < this.lastT ? this.lastT : sample.t;
+    const x = sample.x * k0, y = sample.y * k0, z = sample.z * k0;
     const g = Math.hypot(x, y, z) / G;
     const c = this.c;
 
     // Dynamic acceleration = sample minus the low-pass gravity estimate (shake only; falls use g).
-    if (!this.grav || this.lastT == null || t <= this.lastT) this.grav = [x, y, z];
+    if (!this.grav || this.lastT == null) this.grav = [x, y, z];
     const dyn = Math.hypot(x - this.grav[0], y - this.grav[1], z - this.grav[2]) / G;
     const dt = this.lastT == null ? 0 : Math.max(0, Math.min(t - this.lastT, 200));
     const k = dt / (c.gravityTauMs + dt);

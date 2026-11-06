@@ -24,6 +24,29 @@ export interface MotionDebug {
   fall: string;
 }
 
+/** Motion permission: "not-needed" (Android, desktop), iOS answers, or why the request failed. */
+export type MotionPermission = "unknown" | "pending" | "not-needed" | "granted" | "denied" | `error: ${string}`;
+
+/**
+ * Ask for motion access. MUST be called synchronously inside a tap, before any await (iOS and iPadOS
+ * reject it otherwise). Feature detection, not the user agent: iPad Safari presents itself as a Mac.
+ */
+export function requestMotionPermission(): Promise<MotionPermission> {
+  if (typeof window === "undefined" || typeof DeviceMotionEvent === "undefined") return Promise.resolve("not-needed");
+  const DME = DeviceMotionEvent as unknown as { requestPermission?: () => Promise<PermissionState> };
+  if (typeof DME.requestPermission !== "function") return Promise.resolve("not-needed");
+  try {
+    return DME.requestPermission().then<MotionPermission, MotionPermission>(
+      (state) => (state === "granted" ? "granted" : "denied"),
+      (err: unknown) => `error: ${err instanceof Error ? err.name : String(err)}`,
+    );
+  } catch (err) {
+    return Promise.resolve<MotionPermission>(`error: ${err instanceof Error ? err.name : String(err)}`);
+  }
+}
+
+export const motionAllowed = (p: MotionPermission) => p === "granted" || p === "not-needed";
+
 /** Debug only: devicemotion rate and whether the listener is attached. */
 class SampleStats {
   private times: number[] = [];
@@ -76,7 +99,7 @@ export function useMotionDetection(
       stats.mark(performance.now());
       const a = ev.accelerationIncludingGravity;
       if (!a || a.x == null || a.y == null || a.z == null) return;
-      const sample = { t: ev.timeStamp || performance.now(), x: a.x, y: a.y, z: a.z };
+      const sample = { t: ev.timeStamp || performance.now(), x: a.x, y: a.y, z: a.z }; // m/s² (detector checks)
       const e = detector.push(sample);
       if (e) onEventRef.current(e);
       for (const ae of activity.push(sample)) onActivityRef.current?.(ae);

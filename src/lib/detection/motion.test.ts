@@ -300,3 +300,35 @@ test("debug(): live peak g, peaks in the window, last decision", () => {
   assert.ok(d.debug().peakG > 1.5, `peak ${d.debug().peakG}`);
   assert.match(d.debug().decision, /^shake \(\d peaks\)$/);
 });
+
+// ── iOS / iPadOS specifics ──
+
+test("iOS: inverted axis signs (flat face up reads z = −9.8) → shake and fall still detected", () => {
+  const flip = (ss: MotionSample[]) => ss.map((s) => ({ ...s, x: -s.x, y: -s.y, z: -s.z }));
+  const shake = new Timeline().still(800);
+  handShake(shake, { hz: 3, amp: 2, axis: [0.7, 0, 0.7], shakes: 4 });
+  assert.deepEqual(run(flip(shake.samples)).map((e) => e.type), ["shake"]);
+  const drop = new Timeline().still(1000).add(400, () => [0, 0, 0.08]).add(50, () => [0.4, 0.2, 3.4]).still(4500);
+  assert.deepEqual(run(flip(drop.samples)).map((e) => e.type), ["fall"]);
+});
+
+test("iOS: events delivered in bursts with the same timestamp → shake still detected", () => {
+  const tl = new Timeline().still(800);
+  handShake(tl, { hz: 3, amp: 1.8, axis: [1, 0, 0], shakes: 4 });
+  tl.still(1000);
+  // pairs of samples share a timestamp (batched delivery)
+  const batched = tl.samples.map((s, i) => ({ ...s, t: tl.samples[i - (i % 2)].t }));
+  assert.deepEqual(run(batched).map((e) => e.type), ["shake"]);
+});
+
+test("a browser reporting g instead of m/s² → detected the same", () => {
+  const toG = (ss: MotionSample[]) => ss.map((s) => ({ ...s, x: s.x / G, y: s.y / G, z: s.z / G }));
+  const shake = new Timeline().still(800);
+  handShake(shake, { hz: 2.5, amp: 1.6, axis: [1, 0, 0], shakes: 4 });
+  assert.deepEqual(run(toG(shake.samples)).map((e) => e.type), ["shake"]);
+  const drop = new Timeline().still(1000).add(400, () => [0, 0, 0.08]).add(50, () => [0.4, 0.2, 3.4]).still(4500);
+  assert.deepEqual(run(toG(drop.samples)).map((e) => e.type), ["fall"]);
+  const walk = new Timeline();
+  walking(walk, 20_000);
+  assert.deepEqual(run(toG(walk.samples)), []);
+});
