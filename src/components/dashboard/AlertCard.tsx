@@ -22,6 +22,7 @@ export default function AlertCard({
   now,
   onChanged,
   onSelectResident,
+  actingNurseId,
 }: {
   alert: Alert;
   resident?: Resident;
@@ -29,6 +30,7 @@ export default function AlertCard({
   now: number; // server-aligned ms
   onChanged: () => void;
   onSelectResident: (id: string) => void;
+  actingNurseId?: string;
 }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -137,7 +139,7 @@ export default function AlertCard({
           <button
             type="button"
             disabled={busy !== null}
-            onClick={() => run("acknowledge")}
+            onClick={() => run("acknowledge", actingNurseId)}
             className="rounded bg-teal-600 px-3 py-1 text-sm font-semibold text-white hover:bg-teal-500 disabled:opacity-50"
           >
             {busy === "acknowledge" ? "…" : "Acknowledge"}

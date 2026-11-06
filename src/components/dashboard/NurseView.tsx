@@ -157,6 +157,7 @@ export default function NurseView({ nurseId, logoSrc }: { nurseId: string; logoS
           now={now}
           onChanged={refresh}
           onSelectResident={(id) => residents.some((r) => r.id === id) && setSelectedId(id)}
+          actingNurseId={nurseId}
         />
       </div>
 

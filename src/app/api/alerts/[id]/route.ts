@@ -2,7 +2,7 @@ import type { NextRequest } from "next/server";
 import { getSql, rowToAlert } from "@/lib/db";
 
 // PATCH /api/alerts/:id — dashboard actions on an alert.
-// Body: { action: "acknowledge" } | { action: "resolve" } | { action: "assist", nurseId: string }
+// Body: { action: "acknowledge", nurseId?: string } | { action: "resolve" } | { action: "assist", nurseId: string }
 
 const ID_RE = /^[A-Za-z0-9-]{1,64}$/;
 const ACTIONS = ["acknowledge", "resolve", "assist"] as const;
@@ -34,7 +34,7 @@ export async function PATCH(req: NextRequest, ctx: RouteContext<"/api/alerts/[id
     const now = Date.now();
 
     const [alert] = await sql`
-      SELECT id, status, priority, resident_id, assigned_nurse_id, assisting_nurse_ids
+      SELECT id, status, priority, resident_id, assigned_nurse_id, escalated_to, assisting_nurse_ids
       FROM alerts WHERE id = ${id}`;
     if (!alert) return bad(404, "Alert not found");
     if (alert.status === "resolved") return bad(409, "Alert is already resolved");
@@ -44,12 +44,26 @@ export async function PATCH(req: NextRequest, ctx: RouteContext<"/api/alerts/[id
 
     switch (action as Action) {
       case "acknowledge": {
+        // Whoever taps Acknowledge responds: the nurse view sends its nurseId; the Charge view sends
+        // none → the charge nurse if escalated, else the assigned nurse (same as /api/ack).
+        let responder = (alert.escalated_to as string | null) ?? assignedNurseId;
+        if (nurseId) {
+          // Only the nurses Resolve will free again: assigned, or the charge nurse it escalated to.
+          if (nurseId !== assignedNurseId && nurseId !== alert.escalated_to) {
+            return bad(400, "Only the assigned or escalated-to nurse can acknowledge");
+          }
+          responder = nurseId;
+        }
         if (alert.status === "open") {
-          await sql.transaction([
-            sql`UPDATE alerts SET status = 'acknowledged', acknowledged_at = ${now}
-                WHERE id = ${id} AND status = 'open'`,
-            sql`UPDATE nurses SET status = 'responding' WHERE id = ${assignedNurseId}`,
-          ]);
+          // Conditional: only the first acknowledge (from any tab or phone) marks a nurse responding.
+          await sql`
+            WITH a AS (
+              UPDATE alerts SET status = 'acknowledged', acknowledged_at = ${now}
+              WHERE id = ${id} AND status = 'open'
+              RETURNING id
+            )
+            UPDATE nurses SET status = 'responding'
+            WHERE id = ${responder} AND EXISTS (SELECT 1 FROM a)`;
         }
         break; // already acknowledged → idempotent no-op
       }
