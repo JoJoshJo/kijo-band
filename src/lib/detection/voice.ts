@@ -4,18 +4,27 @@ import type { AlertPriority, Language } from "@/lib/types";
 
 export const MAX_TRANSCRIPT_CHARS = 300;
 
-/** Lowercase, strip accents, unify apostrophes, collapse punctuation/space. */
+const APOSTROPHES = /[\u0027\u2018\u2019\u02BC\u0060\u00B4]/g; // ' ‘ ’ ʼ ` ´ (recognisers use either)
+// French elision at the start of a word: l'eau, d'aide, j'ai, qu'il … → "l eau", "d aide", "j ai".
+const ELISION = /(^|[^a-z])(l|d|j|m|n|s|t|c|qu|jusqu|lorsqu|puisqu)'/g;
+
+/**
+ * Lowercase, strip accents (NFD), unify apostrophes, split French elisions into their own word,
+ * drop the remaining apostrophes (English "can't" → "cant"), collapse punctuation/space.
+ */
 export function normalize(text: string): string {
   return text
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .replace(/[’'`´]/g, "")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(APOSTROPHES, "'")
+    .replace(ELISION, "$1$2 ")
+    .replace(/'/g, "")
     .replace(/[^a-z0-9]+/g, " ")
     .trim();
 }
 
-// Phrases are written already normalized (no accents, no apostrophes).
+// Phrases are written already normalized (no accents; French elisions split: "j ai", "l eau").
 // Spec list, plus a few spelling/gender variants and comfort needs so "Can I get some water" reaches triage.
 export const TRIGGER_PHRASES: Record<Language, string[]> = {
   en: [
@@ -24,11 +33,13 @@ export const TRIGGER_PHRASES: Record<Language, string[]> = {
     "water", "thirsty", "bathroom", "toilet", "blanket",
   ],
   fr: [
-    "au secours", "aide", "a laide", "je suis tombe", "je suis tombee", "jai mal", "urgence", "infirmiere", "infirmier",
-    "eau", "soif", "toilettes", "couverture",
+    "au secours", "secours", "aide", "aidez", "aidez moi", "aider", "je suis tombe", "je suis tombee", "tombe", "tombee",
+    "j ai mal", "douleur", "urgence", "urgent", "infirmiere", "infirmier",
+    "eau", "soif", "boire", "toilettes", "toilette", "wc", "couverture",
   ],
   es: [
-    "ayuda", "emergencia", "me cai", "me duele", "enfermera", "enfermero",
+    "ayuda", "ayudeme", "ayudenme", "ayudame", "socorro", "auxilio", "emergencia", "urgencia",
+    "me cai", "me he caido", "caido", "caida", "me duele", "dolor", "enfermera", "enfermero",
     "agua", "sed", "bano", "manta",
   ],
 };
@@ -81,11 +92,11 @@ const RULES: Rule[] = [
   },
   {
     priority: 1, category: "emergency", summary: "Calls for emergency help",
-    phrases: ["emergency", "urgence", "emergencia", "au secours", "call 911", "appelez", "llamen"],
+    phrases: ["emergency", "urgence", "emergencia", "urgencia", "au secours", "secours", "socorro", "auxilio", "call 911", "appelez", "llamen"],
   },
   {
     priority: 2, category: "pain", summary: "Reports pain",
-    phrases: ["pain", "hurts", "hurt", "jai mal", "mal", "douleur", "me duele", "duele", "dolor"],
+    phrases: ["pain", "hurts", "hurt", "j ai mal", "mal", "douleur", "me duele", "duele", "dolor"],
   },
   {
     priority: 3, category: "water", summary: "Asks for water",
@@ -93,7 +104,7 @@ const RULES: Rule[] = [
   },
   {
     priority: 3, category: "bathroom", summary: "Needs bathroom assistance",
-    phrases: ["bathroom", "toilet", "restroom", "pee", "toilettes", "wc", "bano", "orinar"],
+    phrases: ["bathroom", "toilet", "restroom", "pee", "toilettes", "toilette", "wc", "bano", "orinar"],
   },
   {
     priority: 3, category: "comfort", summary: "Asks for a blanket or comfort item",
@@ -101,7 +112,7 @@ const RULES: Rule[] = [
   },
   {
     priority: 2, category: "help", summary: "Calls for help, request unclear",
-    phrases: ["help", "nurse", "aide", "a laide", "infirmiere", "infirmier", "ayuda", "enfermera", "enfermero"],
+    phrases: ["help", "nurse", "aide", "aidez", "aider", "infirmiere", "infirmier", "ayuda", "ayudeme", "ayudenme", "ayudame", "enfermera", "enfermero"],
   },
 ];
 

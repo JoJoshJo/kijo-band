@@ -57,3 +57,61 @@ test("patient message is in the resident's language; summary stays English and s
 test("unclear call defaults to P2", () => {
   assert.equal(keywordTriage("something something", "en").priority, 2);
 });
+
+// ── FR / ES: normalization + trigger matching on real recognizer output ──
+
+test("normalize: French elisions split, every apostrophe style, accents stripped", () => {
+  assert.equal(normalize("J’ai mal"), "j ai mal");
+  assert.equal(normalize("J'ai mal"), "j ai mal");
+  assert.equal(normalize("Jʼai mal"), "j ai mal");
+  assert.equal(normalize("À l’aide !"), "a l aide");
+  assert.equal(normalize("Je voudrais de l'eau"), "je voudrais de l eau");
+  assert.equal(normalize("J’ai besoin d’aide"), "j ai besoin d aide");
+  assert.equal(normalize("Appelez l’infirmière"), "appelez l infirmiere");
+  assert.equal(normalize("Aidez-moi"), "aidez moi");
+  assert.equal(normalize("Ayúdeme, por favor"), "ayudeme por favor");
+  assert.equal(normalize("¿Dónde está el baño?"), "donde esta el bano");
+  assert.equal(normalize("I can't breathe"), "i cant breathe", "English contractions unchanged");
+  assert.equal(normalize("Je suis tombée"), "je suis tombee", "decomposed accents too");
+});
+
+const FR_TRIGGERS = [
+  "À l’aide", "à l'aide", "Aidez-moi", "aidez moi s'il vous plaît", "Au secours", "Je suis tombé", "Je suis tombée",
+  "je suis tombée par terre", "J’ai mal", "J'ai mal au ventre", "Urgence", "C'est urgent", "Infirmière",
+  "Appelez l’infirmière", "Je voudrais de l’eau", "De l'eau s'il vous plaît", "J'ai soif", "Les toilettes",
+  "Je dois aller aux toilettes", "J’ai besoin d’aide",
+];
+const ES_TRIGGERS = [
+  "Ayuda", "¡Ayúdeme!", "Ayúdenme por favor", "Socorro", "Me caí", "Me he caído", "Me duele la cadera",
+  "Tengo mucho dolor", "Emergencia", "Enfermera", "Quiero agua", "Tengo sed", "Necesito ir al baño",
+];
+
+test("FR trigger phrases match recognizer output (fr resident)", () => {
+  for (const s of FR_TRIGGERS) assert.ok(containsTrigger(s, "fr"), s);
+});
+
+test("ES trigger phrases match recognizer output (es resident)", () => {
+  for (const s of ES_TRIGGERS) assert.ok(containsTrigger(s, "es"), s);
+});
+
+test("FR / ES everyday chatter does not trigger", () => {
+  for (const s of ["Bonjour, ça va bien", "Il fait beau aujourd'hui", "Merci beaucoup", "Bonne nuit", "Quelle heure est-il"]) {
+    assert.ok(!containsTrigger(s, "fr"), s);
+  }
+  for (const s of ["Buenos días", "Gracias", "¿Qué hora es?", "Hace buen tiempo"]) assert.ok(!containsTrigger(s, "es"), s);
+});
+
+test("FR / ES keyword triage (Claude unavailable) classifies elided and imperative forms", () => {
+  assert.equal(keywordTriage("Je voudrais de l’eau", "fr").category, "water");
+  assert.equal(keywordTriage("J’ai mal au dos", "fr").category, "pain");
+  assert.equal(keywordTriage("À l’aide", "fr").category, "help");
+  assert.equal(keywordTriage("Aidez-moi", "fr").category, "help");
+  assert.equal(keywordTriage("Appelez l’infirmière", "fr").priority, 1, "appelez = call for emergency help");
+  assert.equal(keywordTriage("Au secours", "fr").priority, 1);
+  assert.equal(keywordTriage("Je suis tombée", "fr").category, "fall");
+  assert.equal(keywordTriage("Les toilettes s’il vous plaît", "fr").category, "bathroom");
+  assert.equal(keywordTriage("¡Ayúdeme!", "es").category, "help");
+  assert.equal(keywordTriage("¡Socorro!", "es").priority, 1);
+  assert.equal(keywordTriage("Me he caído", "es").category, "fall");
+  assert.equal(keywordTriage("Necesito ir al baño", "es").category, "bathroom");
+});
