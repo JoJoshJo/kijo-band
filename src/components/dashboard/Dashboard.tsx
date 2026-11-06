@@ -3,6 +3,7 @@
 
 import { useCallback, useState } from "react";
 import useSWR from "swr";
+import { FAST_POLL_MS, statePolling } from "./polling";
 import type { Resident, StateResponse } from "@/lib/types";
 import AlertQueue from "./AlertQueue";
 import { ArrowCounterClockwise, Broom, ChartBar, Plus, QrCode } from "@phosphor-icons/react";
@@ -37,7 +38,7 @@ export default function Dashboard({ logoSrc }: { logoSrc: string | null }) {
   const { track, displayHr } = useHeartRateDrift();
   // On errors SWR keeps the last good `data`, so the floor stays on screen under the banner.
   const { data, error, mutate } = useSWR<StateResponse>("/api/state", fetcher, {
-    refreshInterval: 1000,
+    ...statePolling(FAST_POLL_MS),
     onSuccess: (d) => {
       setLastOkAt(Date.now());
       setSkew(d.serverTime - Date.now());

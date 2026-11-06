@@ -5,6 +5,7 @@ import { ArrowRight, X } from "@phosphor-icons/react";
 import Link from "next/link";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import useSWR from "swr";
+import { POLL_MS, statePolling } from "@/components/dashboard/polling";
 import Header from "@/components/dashboard/Header";
 import { useEscalation } from "@/components/dashboard/useEscalation";
 import { useSessionValue } from "@/components/dashboard/useSessionValue";
@@ -33,7 +34,7 @@ export default function PatientView({ logoSrc }: { logoSrc: string | null }) {
   const shownId = useRef("");
   const [skew, setSkew] = useState(0);
   const { data, error, mutate } = useSWR<StateResponse>("/api/state", fetcher, {
-    refreshInterval: 1000,
+    ...statePolling(POLL_MS),
     onSuccess: (d) => {
       setSkew(d.serverTime - Date.now());
       if (!seen.current) {

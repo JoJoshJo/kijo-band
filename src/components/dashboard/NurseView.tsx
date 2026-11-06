@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
+import { FAST_POLL_MS, statePolling } from "./polling";
 import type { Alert, Nurse, Resident, StateResponse } from "@/lib/types";
 import { MAIN_NURSE_ID } from "@/lib/demoConfig";
 import AlertQueue from "./AlertQueue";
@@ -40,7 +41,7 @@ export default function NurseView({ nurseId, logoSrc }: { nurseId: string; logoS
   const { track, displayHr } = useHeartRateDrift();
   // On errors SWR keeps the last good `data`: residents and queue stay on screen under the banner.
   const { data, error, mutate } = useSWR<StateResponse>("/api/state", fetcher, {
-    refreshInterval: 1000,
+    ...statePolling(FAST_POLL_MS),
     onSuccess: (d) => {
       setLastOkAt(Date.now());
       setSkew(d.serverTime - Date.now());
