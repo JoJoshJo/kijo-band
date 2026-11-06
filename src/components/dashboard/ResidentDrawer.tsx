@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect } from "react";
+import useSWR from "swr";
+import type { AlertHistoryItem } from "@/app/api/residents/[id]/history/route";
 import type { Alert, Nurse, Resident } from "@/lib/types";
 import {
   ALERT_ICON,
@@ -59,6 +61,13 @@ export default function ResidentDrawer({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
+
+  const { data: historyData } = useSWR<{ alerts: AlertHistoryItem[] }>(
+    `/api/residents/${encodeURIComponent(resident.id)}/history`,
+    (url: string) => fetch(url, { cache: "no-store" }).then((r) => (r.ok ? r.json() : Promise.reject(r.status))),
+    { refreshInterval: 3000 },
+  );
+  const history = historyData?.alerts;
 
   const nurse = nurses.find((n) => n.id === resident.assignedNurseId);
   const active = sortAlerts(alerts.filter((a) => a.residentId === resident.id));
@@ -156,23 +165,29 @@ export default function ResidentDrawer({
           </Row>
         </Section>
 
-        <Section title="ACTIVE ALERTS">
-          {active.length === 0 ? (
-            <p className="py-1 text-sm text-slate-400">None</p>
+        <Section title="LAST 5 ALERTS">
+          {!history ? (
+            <p className="py-1 text-sm text-slate-500">Loading…</p>
+          ) : history.length === 0 ? (
+            <p className="py-1 text-sm text-slate-400">No alerts yet</p>
           ) : (
             <ul className="py-1">
-              {active.map((a) => (
+              {history.map((a) => (
                 <li key={a.id} className="flex items-center gap-2 py-1 text-sm">
                   <span className={`rounded px-1.5 text-xs font-bold text-slate-950 ${PRIORITY[a.priority].bg}`}>
                     {PRIORITY[a.priority].label}
                   </span>
-                  <span>
+                  <span className="min-w-0 truncate">
                     {ALERT_ICON[a.type]} {ALERT_LABEL[a.type]}
+                    <span className="text-slate-500"> · {a.status}</span>
+                    {a.escalatedTo && <span className="text-red-400"> · escalated</span>}
                   </span>
-                  <span className="text-slate-400">· {a.status}</span>
-                  {now != null && (
-                    <span className="ml-auto font-mono text-xs text-slate-400">{formatDuration(now - a.createdAt)}</span>
-                  )}
+                  <span className="ml-auto shrink-0 text-right font-mono text-xs">
+                    <span className={a.responseMs != null ? "text-teal-300" : "text-slate-500"}>
+                      {a.responseMs != null ? `ack ${formatDuration(a.responseMs)}` : "no ack"}
+                    </span>
+                    {now != null && <span className="text-slate-500"> · {formatDuration(now - a.createdAt)} ago</span>}
+                  </span>
                 </li>
               ))}
             </ul>
