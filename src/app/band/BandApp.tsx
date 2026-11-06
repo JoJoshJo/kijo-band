@@ -15,6 +15,7 @@ import {
 import { LANGUAGES, STRINGS, fill, nurseDisplayName, type BandStrings } from "./_lib/i18n";
 import { useMotionDetection } from "./_lib/useMotionDetection";
 import { useVoiceTrigger } from "./_lib/useVoiceTrigger";
+import { promptInstall, useBandPwa, useInstallKind, useStoredResidentId } from "./_lib/pwa";
 
 const POLL_MS = 1000;
 const HEARTBEAT_MS = 2000;
@@ -29,11 +30,34 @@ const fetcher = async (url: string): Promise<StateResponse> => {
 
 export default function BandApp() {
   const params = useSearchParams();
-  const residentId = params.get("resident");
   const embedded = params.get("embedded") === "1";
+  // Opened from the home screen without ?resident= (older install): fall back to the resident saved on this phone.
+  const storedResidentId = useStoredResidentId();
+  const residentId = params.get("resident") ?? (embedded ? null : storedResidentId);
 
   if (!residentId) return <CenterMessage text={STRINGS.en.missingResident} />;
   return <Band key={residentId} residentId={residentId} embedded={embedded} />;
+}
+
+/** "Add to Home Screen" hint on the Start screen; hidden once installed and on desktop browsers. */
+function InstallHint({ t }: { t: BandStrings }) {
+  const kind = useInstallKind();
+  if (kind !== "ios" && kind !== "prompt") return null;
+  return (
+    <div className="w-full max-w-sm rounded-2xl border border-slate-700 bg-slate-900 p-4 text-center">
+      <div className="text-lg font-semibold">{t.installTitle}</div>
+      {kind === "ios" ? (
+        <div className="mt-1 text-base text-slate-300">{t.installIos}</div>
+      ) : (
+        <button
+          onClick={() => void promptInstall()}
+          className="mt-3 rounded-full bg-white px-5 py-2 text-lg font-semibold text-black active:scale-95"
+        >
+          {t.installButton}
+        </button>
+      )}
+    </div>
+  );
 }
 
 function CenterMessage({ text }: { text: string }) {
@@ -73,6 +97,8 @@ function Band({ residentId, embedded }: { residentId: string; embedded: boolean 
   const wakeLockRef = useRef<WakeLockSentinel | null>(null);
 
   const [now, setNow] = useState(() => Date.now());
+
+  useBandPwa(residentId, !embedded);
 
   // ── Simulated heart rate (spec: resting 62–80 with small noise) ──
   const [hr, setHr] = useState<number | null>(null);
@@ -298,6 +324,7 @@ function Band({ residentId, embedded }: { residentId: string; embedded: boolean 
         </button>
         <div className="text-xl text-slate-400">{t.startHint}</div>
         <LanguageSwitch lang={lang} onChange={setLangOverride} />
+        <InstallHint t={t} />
       </div>
     );
   }
