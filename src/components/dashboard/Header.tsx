@@ -50,11 +50,24 @@ export default function Header({
 }) {
   return (
     <header className="flex items-center gap-5 border-b border-slate-800 px-5 py-3">
-      {logoSrc ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={logoSrc} alt="Kijo" className="h-8 w-8" />
-      ) : null}
-      <span className="text-xl font-black tracking-[0.3em] text-white">KIJO</span>
+      <span className="flex items-center gap-2.5">
+        {logoSrc ? (
+          // Source is black-on-white with wide padding: invert → white hexagon on black, then `screen` drops
+          // the black so the glyph shows the header background. Scale 1.4 crops the padding (hexagon ≈ 71% tall).
+          <span className="relative block h-10 w-10 overflow-hidden" aria-hidden>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={logoSrc}
+              alt=""
+              width={40}
+              height={40}
+              className="h-full w-full scale-[1.4] mix-blend-screen invert"
+              decoding="async"
+            />
+          </span>
+        ) : null}
+        <span className="text-xl font-black tracking-[0.3em] text-white">KIJO</span>
+      </span>
       <ViewToggle current={view} />
       <span className="text-slate-400">Night Shift</span>
       <NightClock />
