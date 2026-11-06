@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import useSWR from "swr";
 
-// Client side of /api/admin/**: the admin secret is asked once per browser-tab session
-// (sessionStorage, same key as the Reset dialog) and forgotten on a 401.
+// Client side of /api/admin/**. When the server runs with ADMIN_OPEN=1 (/api/admin/mode says open),
+// no secret is asked. Otherwise the admin secret is asked once per browser-tab session
+// (sessionStorage) and forgotten on a 401.
 
 export const ADMIN_SECRET_KEY = "kijo-admin-secret";
 
@@ -14,36 +16,46 @@ export function useAdminSecret() {
     typeof window === "undefined" ? "" : (sessionStorage.getItem(ADMIN_SECRET_KEY) ?? ""),
   );
   const [typed, setTyped] = useState("");
+  const { data: mode } = useSWR<{ open: boolean }>("/api/admin/mode", (u: string) => fetch(u).then((r) => r.json()), {
+    revalidateOnFocus: false,
+  });
+  const open = mode?.open === true;
 
   /** Sends the request with the stored or typed secret; remembers it on success, forgets it on 401. */
   async function send(url: string, method: "POST" | "PATCH", body?: unknown): Promise<AdminResult> {
     const secret = stored || typed;
-    if (!secret) return { ok: false, error: "Enter the admin secret", field: "secret" };
+    if (!secret && !open) return { ok: false, error: "Enter the admin secret.", field: "secret" };
     try {
       const res = await fetch(url, {
         method,
-        headers: { "x-admin-secret": secret, ...(body ? { "content-type": "application/json" } : {}) },
+        headers: {
+          ...(secret ? { "x-admin-secret": secret } : {}),
+          ...(body ? { "content-type": "application/json" } : {}),
+        },
         body: body ? JSON.stringify(body) : undefined,
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
       if (res.status === 401) {
         sessionStorage.removeItem(ADMIN_SECRET_KEY);
         setStored("");
-        return { ok: false, error: "Wrong admin secret", field: "secret" };
+        return { ok: false, error: "That admin secret is not right. Check it and try again.", field: "secret" };
       }
-      if (res.status === 429) return { ok: false, error: "Too many tries — wait a minute" };
+      if (res.status === 429) return { ok: false, error: "Too many tries. Wait a minute, then try again." };
       if (!res.ok) {
         return { ok: false, error: String(data.error ?? `HTTP ${res.status}`), field: data.field as string | undefined };
       }
-      sessionStorage.setItem(ADMIN_SECRET_KEY, secret);
-      setStored(secret);
+      if (secret) {
+        sessionStorage.setItem(ADMIN_SECRET_KEY, secret);
+        setStored(secret);
+      }
       return { ok: true, data };
     } catch {
-      return { ok: false, error: "Network error — try again" };
+      return { ok: false, error: "Could not reach the server. Check the connection and try again." };
     }
   }
 
-  return { needsSecret: !stored, typed, setTyped, send };
+  // While the mode is loading the field stays hidden, so it doesn't flash in open mode.
+  return { needsSecret: mode !== undefined && !open && !stored, typed, setTyped, send };
 }
 
 export const inputClass =

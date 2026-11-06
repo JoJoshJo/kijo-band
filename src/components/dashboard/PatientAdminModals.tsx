@@ -8,7 +8,7 @@ import Modal from "./Modal";
 import { AdminSecretInput, ModalActions, inputClass, useAdminSecret } from "./adminClient";
 import { residentTitle } from "./util";
 
-// Charge view patient management (all behind DEMO_ADMIN_SECRET): add, move, remove, clear QR guests.
+// Charge view resident management (all behind DEMO_ADMIN_SECRET): add, move, remove, clear QR guests.
 
 const LANG_LABEL: Record<Language, string> = { en: "English", fr: "Français", es: "Español" };
 
@@ -57,7 +57,7 @@ export function AddPatientModal({ nurses, onClose, onDone }: { nurses: Nurse[]; 
   }
 
   return (
-    <Modal title="Add patient" onClose={onClose}>
+    <Modal title="Add resident" onClose={onClose}>
       <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
         <div className="grid grid-cols-[1fr_7rem] gap-3">
           <label className="flex flex-col gap-1 text-sm text-muted">
@@ -96,7 +96,7 @@ export function AddPatientModal({ nurses, onClose, onDone }: { nurses: Nurse[]; 
           <legend className="mb-1">Can speak</legend>
           <div className="grid grid-cols-2 gap-2">
             <Choice name="speak" checked={canSpeak} onChange={() => setCanSpeak(true)} label="Yes" />
-            <Choice name="speak" checked={!canSpeak} onChange={() => setCanSpeak(false)} label="No (non-verbal)" />
+            <Choice name="speak" checked={!canSpeak} onChange={() => setCanSpeak(false)} label="No, non-verbal" />
           </div>
         </fieldset>
         <label className="flex flex-col gap-1 text-sm text-muted">
@@ -111,7 +111,7 @@ export function AddPatientModal({ nurses, onClose, onDone }: { nurses: Nurse[]; 
         </label>
         {admin.needsSecret && <AdminSecretInput value={admin.typed} onChange={admin.setTyped} />}
         <ErrorLine text={error?.text} />
-        <ModalActions onCancel={onClose} submitLabel="Add patient" busyLabel="Adding…" busy={busy} />
+        <ModalActions onCancel={onClose} submitLabel="Add resident" busyLabel="Adding…" busy={busy} />
       </form>
     </Modal>
   );
@@ -157,7 +157,7 @@ export function MovePatientModal({
       >
         <p className="text-sm text-ink">
           <b>{residentTitle(resident)}</b>
-          {current && <span className="text-muted"> · now with {current.name}</span>}. Open alerts move too.
+          {current && <span className="text-muted"> · now with {current.name}</span>}. Their open alerts move too.
         </p>
         <fieldset className="grid gap-2">
           <legend className="sr-only">New nurse</legend>
@@ -167,7 +167,7 @@ export function MovePatientModal({
         </fieldset>
         {admin.needsSecret && <AdminSecretInput value={admin.typed} onChange={admin.setTyped} />}
         <ErrorLine text={error?.text} />
-        <ModalActions onCancel={onClose} submitLabel="Move patient" busyLabel="Moving…" busy={busy} disabled={!nurseId} />
+        <ModalActions onCancel={onClose} submitLabel="Move resident" busyLabel="Moving…" busy={busy} disabled={!nurseId} />
       </form>
     </Modal>
   );
@@ -186,7 +186,7 @@ export function RemovePatientModal({
 }) {
   const { admin, busy, error, run } = useSubmit(onDone, onClose);
   return (
-    <Modal title="Remove patient?" onClose={onClose}>
+    <Modal title="Remove resident?" onClose={onClose}>
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -204,12 +204,12 @@ export function RemovePatientModal({
           )}
           .{" "}
           {resident.isGuest
-            ? "This QR guest is deleted; the phone can join again."
+            ? "This joined resident is deleted. The phone can join again."
             : "Reset demo brings this resident back."}
         </p>
         {admin.needsSecret && <AdminSecretInput value={admin.typed} onChange={admin.setTyped} />}
         <ErrorLine text={error?.text} />
-        <ModalActions onCancel={onClose} submitLabel="Remove patient" busyLabel="Removing…" busy={busy} />
+        <ModalActions onCancel={onClose} submitLabel="Remove resident" busyLabel="Removing…" busy={busy} />
       </form>
     </Modal>
   );
@@ -218,7 +218,7 @@ export function RemovePatientModal({
 export function ClearGuestsModal({ count, onClose, onDone }: { count: number; onClose: () => void; onDone: () => void }) {
   const { admin, busy, error, run } = useSubmit(onDone, onClose);
   return (
-    <Modal title="Clear test patients?" onClose={onClose}>
+    <Modal title="Clear joined residents?" onClose={onClose}>
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -227,12 +227,12 @@ export function ClearGuestsModal({ count, onClose, onDone }: { count: number; on
         className="flex flex-col gap-4"
       >
         <p className="text-sm text-ink">
-          Deletes <b>{count === 1 ? "1 joined guest" : `${count} joined guests`}</b> (QR test patients) and their
-          alerts. Demo residents stay. Phones can join again.
+          Deletes <b>{count === 1 ? "1 joined resident" : `${count} joined residents`}</b> (everyone who joined by QR code) and
+          their alerts. Demo residents stay. Phones can join again.
         </p>
         {admin.needsSecret && <AdminSecretInput value={admin.typed} onChange={admin.setTyped} />}
         <ErrorLine text={error?.text} />
-        <ModalActions onCancel={onClose} submitLabel={`Clear ${count}`} busyLabel="Clearing…" busy={busy} disabled={count === 0} />
+        <ModalActions onCancel={onClose} submitLabel={count === 1 ? "Clear 1 resident" : `Clear ${count} residents`} busyLabel="Clearing…" busy={busy} disabled={count === 0} />
       </form>
     </Modal>
   );

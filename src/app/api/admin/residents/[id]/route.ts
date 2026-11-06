@@ -24,11 +24,11 @@ export async function PATCH(req: NextRequest, ctx: RouteContext<"/api/admin/resi
   try {
     const sql = getSql();
     const [resident] = await sql`SELECT id, is_guest FROM residents WHERE id = ${id} AND active`;
-    if (!resident) return Response.json({ error: "Patient not found" }, { status: 404 });
+    if (!resident) return Response.json({ error: "This resident is no longer on the floor. Refresh the page." }, { status: 404 });
 
     if (action.action === "move") {
       const [nurse] = await sql`SELECT id FROM nurses WHERE id = ${action.nurseId} AND role <> 'Charge'`;
-      if (!nurse) return Response.json({ error: "Unknown nurse" }, { status: 400 });
+      if (!nurse) return Response.json({ error: "Choose a nurse from the list." }, { status: 400 });
       await sql.transaction([
         sql`UPDATE residents SET assigned_nurse_id = ${action.nurseId} WHERE id = ${id}`,
         sql`UPDATE alerts SET assigned_nurse_id = ${action.nurseId} WHERE resident_id = ${id} AND status <> 'resolved'`,
@@ -49,6 +49,6 @@ export async function PATCH(req: NextRequest, ctx: RouteContext<"/api/admin/resi
     return Response.json({ ok: true, removed: id, deleted: !!resident.is_guest, alertsResolved: resolved.length });
   } catch (err) {
     console.error(`PATCH /api/admin/residents/${id} failed:`, err);
-    return Response.json({ error: "Could not update patient" }, { status: 500 });
+    return Response.json({ error: "Could not update the resident. Try again." }, { status: 500 });
   }
 }

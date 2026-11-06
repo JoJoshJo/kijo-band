@@ -76,22 +76,22 @@ export default function JoinForm() {
         return setStatus({ kind: "name", error: body.code as NameError });
       }
       if (!res.ok || typeof body.residentId !== "string") {
-        return setStatus({ kind: "error", message: body.error ?? `Something went wrong (${res.status})` });
+        return setStatus({ kind: "error", message: body.error ?? "Could not join. Try again." });
       }
       try {
         localStorage.setItem(RESIDENT_KEY, body.residentId);
       } catch {}
       router.replace(`/band?resident=${encodeURIComponent(body.residentId)}`);
     } catch {
-      setStatus({ kind: "error", message: "No connection. Try again." });
+      setStatus({ kind: "error", message: "No connection. Check your Wi-Fi or data, then try again." });
     }
   }
 
   if (status.kind === "full") {
     return (
       <div className="mt-10 w-full max-w-sm rounded-btn border border-line-2 bg-surface p-6 text-center">
-        <div className="text-2xl font-semibold">Demo is full</div>
-        <p className="mt-2 text-xl text-muted">All 15 guest rooms are taken. Watch the big screen instead!</p>
+        <div className="text-2xl font-semibold">The demo is full</div>
+        <p className="mt-2 text-xl text-muted">All 15 places are taken. You can follow along on the big screen.</p>
       </div>
     );
   }

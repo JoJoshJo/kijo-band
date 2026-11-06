@@ -58,7 +58,7 @@ test("rule-based handoff: falls first, 3 recommendations, plain text", () => {
   assert.equal(h.recommendations.length, 3);
   assert.match(h.recommendations[0], /Room 14 .* 2 falls .* fall-risk plan/);
   assert.ok(!h.nurses.some((n) => n.role === "Charge")); // nothing escalated → no charge row
-  assert.match(h.text, /NEEDS ATTENTION THIS MORNING/);
+  assert.match(h.text, /Needs attention this morning/);
 });
 
 test("quiet night", () => {

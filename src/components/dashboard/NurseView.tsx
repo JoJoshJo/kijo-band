@@ -87,7 +87,7 @@ export default function NurseView({ nurseId, logoSrc }: { nurseId: string; logoS
   };
 
   const live = error ? "offline" : data ? "live" : "connecting";
-  const isMain = nurseId === MAIN_NURSE_ID; // main nurse: Live patients on top, demo residents collapsed
+  const isMain = nurseId === MAIN_NURSE_ID; // main nurse: live residents on top, her 3 residents below
 
   if (data && (!nurse || nurse.role === "Charge")) {
     return (
@@ -95,7 +95,7 @@ export default function NurseView({ nurseId, logoSrc }: { nurseId: string; logoS
         <Header logoSrc={logoSrc} view="nurse" live={live} />
         <main className="flex flex-1 flex-col items-center justify-center gap-4 p-4 text-center">
           <UserCircle size={40} className="text-muted" aria-hidden />
-          <p className="text-xl text-ink">{nurse ? `${nurse.name} uses the Charge view.` : "Unknown nurse."}</p>
+          <p className="text-xl text-ink">{nurse ? `${nurse.name} is the charge nurse and uses the Charge view.` : "No nurse with this link."}</p>
           <div className="flex gap-2">
             {nurse && (
               <Link
@@ -110,7 +110,7 @@ export default function NurseView({ nurseId, logoSrc }: { nurseId: string; logoS
               onClick={switchNurse}
               className="inline-flex h-10 items-center rounded-btn border border-line-2 px-4 text-ink hover:bg-surface-2"
             >
-              Pick a nurse
+              Switch nurse
             </button>
           </div>
         </main>
@@ -250,7 +250,7 @@ function TeamEmergencies({
             className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-alarm/40 bg-tint-p1 px-4 py-2 text-sm text-ink"
           >
             <Siren size={18} weight="bold" className="kijo-flash-fast text-alarm" aria-hidden />
-            <span className="font-semibold">Team emergency</span>
+            <span className="font-semibold">Team emergency · Critical</span>
             <span className="text-ink/90">
               {residentTitle(r)} · {ALERT_LABEL[a.type]}
             </span>
@@ -276,7 +276,7 @@ function TeamEmergencies({
                   }}
                   className="inline-flex h-11 items-center rounded-btn bg-brand px-4 text-sm font-semibold text-on-brand hover:bg-brand-hover disabled:opacity-60 lg:h-8 lg:px-3"
                 >
-                  {busy === a.id ? "…" : "Assist"}
+                  {busy === a.id ? "Saving…" : "Assist"}
                 </button>
               )}
             </span>

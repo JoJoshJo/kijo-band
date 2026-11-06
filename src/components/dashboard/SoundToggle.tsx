@@ -21,7 +21,7 @@ export default function SoundToggle({ sound }: { sound: ReturnType<typeof useAla
         type="button"
         onClick={sound.toggleMute}
         aria-pressed={sound.muted}
-        title={sound.ready ? (sound.muted ? "Unmute alarm sounds" : "Mute alarm sounds") : "Browsers need one click before sound can play"}
+        title={sound.ready ? (sound.muted ? "Unmute alarm sounds" : "Mute alarm sounds") : "Turn on alarm sounds (the browser needs one click first)"}
         className={`inline-flex h-9 items-center gap-1.5 rounded-btn border px-3 text-sm font-medium transition-colors hover:bg-surface-2 ${
           sound.muted ? "border-line-2 text-muted" : "border-line-2 text-ink"
         }`}

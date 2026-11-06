@@ -21,7 +21,7 @@ export default function QrModal({ onClose }: { onClose: () => void }) {
   }, []);
 
   return (
-    <Modal title="Join the demo" onClose={onClose} wide>
+    <Modal title="Join as a resident" onClose={onClose} wide>
       <div className="flex flex-col items-center gap-4">
         <div className="aspect-square w-full max-w-[520px] rounded-card border border-line bg-white p-4">
           {qr && (
@@ -29,7 +29,7 @@ export default function QrModal({ onClose }: { onClose: () => void }) {
             <img src={qr.dataUrl} alt={`QR code for ${qr.url}`} className="h-full w-full" />
           )}
         </div>
-        <p className="text-display font-semibold text-ink">Scan to become a resident</p>
+        <p className="text-display font-semibold text-ink">Scan with your phone camera</p>
         {qr && <p className="font-mono text-sm text-muted">{qr.url}</p>}
       </div>
     </Modal>

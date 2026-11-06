@@ -109,7 +109,7 @@ export default function ResidentDrawer({
           <div className="min-w-0">
             <div className="text-xl font-semibold text-ink">{resident.name}</div>
             <div className="text-sm text-muted">
-              {resident.isGuest ? `Live patient · ${resident.room}` : `${resident.age} y · Room ${resident.room} · ${resident.wing} wing`}
+              {resident.isGuest ? `Joined by QR code · ${resident.room}` : `${resident.age} y · Room ${resident.room} · ${resident.wing} wing`}
             </div>
             <div className="text-sm text-muted">
               Nurse: <span className="text-ink">{nurse?.name ?? "—"}</span>
@@ -118,7 +118,7 @@ export default function ResidentDrawer({
           </div>
         </div>
 
-        <Section title="LIVE">
+        <Section title="Live">
           <div className="flex items-center gap-4">
             <span className={`num text-display ${top ? PRIORITY[top.priority].text : "text-ink"}`}>
               {heartRate}
@@ -130,7 +130,7 @@ export default function ResidentDrawer({
           </div>
         </Section>
 
-        <Section title="SAFETY">
+        <Section title="Safety">
           <Row label="Fall risk">
             <span className={FALL_RISK_STYLE[resident.fallRisk]}>{resident.fallRisk}</span>
           </Row>
@@ -155,23 +155,23 @@ export default function ResidentDrawer({
           </Row>
         </Section>
 
-        <Section title="COMMUNICATION">
+        <Section title="Communication">
           <Row label="Language">{LANGUAGE_NAME[resident.language]}</Row>
-          <Row label="Can speak">{resident.canSpeak ? "Yes — voice enabled" : "No — buttons / gesture only"}</Row>
+          <Row label="Can speak">{resident.canSpeak ? "Yes, voice is on" : "No, uses buttons and gestures"}</Row>
         </Section>
 
-        <Section title="CARE NOTES">
-          <p className="py-1 text-sm text-ink">{resident.careNotes || "—"}</p>
+        <Section title="Care notes">
+          <p className="py-1 text-sm text-ink">{resident.careNotes || "None"}</p>
         </Section>
 
-        <Section title="EMERGENCY CONTACT">
+        <Section title="Emergency contact">
           <Row label={resident.emergencyContact.relation}>{resident.emergencyContact.name}</Row>
           <Row label="Phone">
             <span className="font-mono">{maskPhone(resident.emergencyContact.phone)}</span>
           </Row>
         </Section>
 
-        <Section title="LAST 5 ALERTS">
+        <Section title="Last 5 alerts">
           {!history ? (
             <p className="py-1 text-sm text-muted">Loading…</p>
           ) : history.length === 0 ? (

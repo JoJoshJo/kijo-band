@@ -49,7 +49,7 @@ export default function AlertQueue({
               <p className="mt-2 text-base font-semibold text-ink">All quiet</p>
               <p className="text-sm text-muted">
                 {residentCount === undefined
-                  ? "No active alerts"
+                  ? "No open alerts"
                   : residentCount === 0
                     ? "No residents assigned"
                     : `${residentCount} resident${residentCount === 1 ? "" : "s"}, all OK`}

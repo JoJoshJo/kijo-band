@@ -108,7 +108,7 @@ export default function PatientView({ logoSrc }: { logoSrc: string | null }) {
       </div>
 
       <main className="flex min-h-0 flex-1 justify-center bg-bg">
-        {residentId && <BandFrame residentId={residentId} title={`Kijo Band — ${resident?.name ?? residentId}`} />}
+        {residentId && <BandFrame residentId={residentId} title={`Kijo Band: ${resident?.name ?? residentId}`} />}
       </main>
 
       {toast && (
@@ -126,12 +126,12 @@ export default function PatientView({ logoSrc }: { logoSrc: string | null }) {
             href={nurseHref(toast.assignedNurseId)}
             className="inline-flex h-9 items-center gap-1.5 rounded-btn bg-brand px-3 text-sm font-semibold text-on-brand hover:bg-brand-hover"
           >
-            View in Nurse view <ArrowRight size={16} weight="bold" aria-hidden />
+            Open nurse view <ArrowRight size={16} weight="bold" aria-hidden />
           </Link>
           <button
             type="button"
             onClick={() => setToast(null)}
-            aria-label="Dismiss"
+            aria-label="Close message"
             className="flex h-9 w-9 items-center justify-center rounded-btn text-muted hover:bg-surface-2 hover:text-ink"
           >
             <X size={18} aria-hidden />

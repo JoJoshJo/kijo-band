@@ -12,18 +12,18 @@ function formatAvg(ms: number | null): string {
   return formatDuration(ms);
 }
 
-/** ["G2","G4","G2"] → "Rm G2 ×2, Rm G4" */
+/** ["G2","G4","G2"] → "Room G2 ×2, Room G4" */
 function roomCounts(rooms: string[]): string {
   const counts = new Map<string, number>();
   for (const r of rooms) counts.set(r, (counts.get(r) ?? 0) + 1);
-  return [...counts].map(([r, n]) => `Rm ${r}${n > 1 ? ` ×${n}` : ""}`).join(", ");
+  return [...counts].map(([r, n]) => `Room ${r}${n > 1 ? ` ×${n}` : ""}`).join(", ");
 }
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return <h3 className="mb-2 text-xs font-semibold tracking-widest text-muted">{children}</h3>;
 }
 
-/** "Generate shift handoff" → POST /api/report/handoff. Neutral: red/yellow stay reserved for alarms. */
+/** "Draft shift handoff" → POST /api/report/handoff. Neutral: red/yellow stay reserved for alarms. */
 export default function HandoffPanel() {
   const [state, setState] = useState<
     { kind: "idle" } | { kind: "loading" } | { kind: "error"; message: string } | { kind: "done"; handoff: Handoff }
@@ -37,7 +37,7 @@ export default function HandoffPanel() {
       const res = await fetch("/api/report/handoff", { method: "POST", cache: "no-store" });
       if (res.status === 429) {
         const sec = res.headers.get("Retry-After");
-        setState({ kind: "error", message: `Too many requests — try again in ${sec ?? "a few"} s.` });
+        setState({ kind: "error", message: `Too many requests. Try again in ${sec ?? "a few"} seconds.` });
         return;
       }
       if (!res.ok) throw new Error(String(res.status));
@@ -81,7 +81,7 @@ export default function HandoffPanel() {
           disabled={loading}
           className="inline-flex h-10 items-center rounded-btn bg-brand px-4 text-sm font-semibold text-on-brand hover:bg-brand-hover disabled:opacity-60"
         >
-          {loading ? "Writing…" : state.kind === "done" ? "Regenerate" : "Generate shift handoff"}
+          {loading ? "Drafting…" : state.kind === "done" ? "Draft again" : "Draft shift handoff"}
         </button>
       </div>
 
@@ -100,7 +100,7 @@ function HandoffBody({ handoff: h }: { handoff: Handoff }) {
     <div className="mt-1 flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
         <span className="rounded-full border border-line-2 bg-surface-2 px-2 py-0.5 font-medium text-ink">
-          {h.source === "claude" ? <span className="inline-flex items-center gap-1"><Sparkle size={14} weight="bold" aria-hidden /> Drafted by Claude</span> : "Rule-based (AI unavailable)"}
+          {h.source === "claude" ? <span className="inline-flex items-center gap-1"><Sparkle size={14} weight="bold" aria-hidden /> Drafted by Claude</span> : "Rule-based (Claude unavailable)"}
         </span>
         <span>
           {h.totals.alerts} alerts · {h.totals.escalations} escalated · {h.totals.open} not resolved ·{" "}
@@ -109,16 +109,16 @@ function HandoffBody({ handoff: h }: { handoff: Handoff }) {
       </div>
 
       <div>
-        <SectionTitle>NEEDS ATTENTION THIS MORNING</SectionTitle>
+        <SectionTitle>Needs attention this morning</SectionTitle>
         {h.needsAttention.length === 0 ? (
-          <p className="text-sm text-ink">Nobody flagged — quiet night.</p>
+          <p className="text-sm text-ink">No one needs extra attention. Quiet night.</p>
         ) : (
           <ul className="flex flex-col gap-1.5">
             {h.needsAttention.map((a) => (
               <li key={a.room} className="flex gap-3 rounded-lg bg-surface px-3 py-2 text-sm">
                 <span className="shrink-0 font-mono font-semibold text-ink">Rm {a.room}</span>
                 <span className="text-ink">
-                  <span className="font-medium text-ink">{a.name}</span> — {a.reason}
+                  <span className="font-medium text-ink">{a.name}:</span> {a.reason}
                 </span>
               </li>
             ))}
@@ -127,14 +127,14 @@ function HandoffBody({ handoff: h }: { handoff: Handoff }) {
       </div>
 
       <div>
-        <SectionTitle>BY NURSE</SectionTitle>
+        <SectionTitle>By nurse</SectionTitle>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead className="text-xs text-muted">
               <tr>
                 <th scope="col" className="py-1 pr-3 font-medium">Nurse</th>
                 <th scope="col" className="py-1 pr-3 font-medium">Handled</th>
-                <th scope="col" className="py-1 pr-3 font-medium">Avg response</th>
+                <th scope="col" className="py-1 pr-3 font-medium">Average response</th>
                 <th scope="col" className="py-1 font-medium">Left open</th>
               </tr>
             </thead>
@@ -160,7 +160,7 @@ function HandoffBody({ handoff: h }: { handoff: Handoff }) {
       </div>
 
       <div>
-        <SectionTitle>RECOMMENDATIONS</SectionTitle>
+        <SectionTitle>Recommendations</SectionTitle>
         <ol className="flex list-decimal flex-col gap-1 pl-5 text-sm text-ink marker:text-muted">
           {h.recommendations.map((r, i) => (
             <li key={i}>{r}</li>
@@ -170,7 +170,7 @@ function HandoffBody({ handoff: h }: { handoff: Handoff }) {
 
       <p className="text-xs text-muted">
         {h.source === "claude"
-          ? "AI draft — numbers come from the alert log; verify before acting. Fictional demo data."
+          ? "Drafted by Claude. The numbers come from the alert log. Check before acting. Fictional demo data."
           : "Built from simple rules over the alert log. Fictional demo data."}
       </p>
     </div>

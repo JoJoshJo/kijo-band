@@ -23,18 +23,18 @@ export function isTypingTarget(target: EventTarget | null): boolean {
   return !!t && (t.isContentEditable || ["INPUT", "SELECT", "TEXTAREA"].includes(t.tagName));
 }
 
-/** Header segmented control: Nurse view | Patient view | Charge view. Neutral: teal is for primary buttons only. */
+/** Header segmented control: Nurse view | Resident view | Charge view. Neutral: teal is for primary buttons only. */
 export function ViewToggle({ current }: { current: View }) {
   const [nurseId] = useCurrentNurse();
   const items: [View, string, string][] = [
     ["nurse", nurseHref(nurseId), "Nurse"],
-    ["patient", "/patient", "Patient"],
+    ["patient", "/patient", "Resident"],
     ["charge", "/dashboard", "Charge"],
   ];
   return (
     <nav
       aria-label="Switch view"
-      title="Press V to switch Nurse ⇄ Patient"
+      title="Press V to switch between the nurse and resident views"
       className="flex h-9 items-center rounded-btn border border-line-2 bg-surface p-0.5"
     >
       {items.map(([view, href, label]) => {
@@ -57,7 +57,7 @@ export function ViewToggle({ current }: { current: View }) {
   );
 }
 
-/** V switches Nurse ⇄ Patient view (from Charge view it goes to Patient). Ignored while typing. */
+/** V switches Nurse ⇄ Resident view (from Charge view it goes to Resident). Ignored while typing. */
 export function useViewShortcut(current: View) {
   const router = useRouter();
   const [nurseId] = useCurrentNurse();

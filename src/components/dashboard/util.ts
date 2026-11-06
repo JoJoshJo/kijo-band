@@ -16,16 +16,17 @@ import {
 } from "@phosphor-icons/react";
 import type { Alert, AlertPriority, AlertType, Nurse, Resident } from "@/lib/types";
 
-// IEC 60601-1-8 style: P1 red fast flash · P2 yellow slow flash · P3 light blue steady · OK green.
+// IEC 60601-1-8 style: Critical (P1) red fast flash · Urgent (P2) yellow slow flash · Routine (P3) light blue steady · OK green.
+// UI text shows the word (Critical / Urgent / Routine), never "P1".
 // Red/yellow are reserved for alarms — don't use them for anything else on the dashboard.
 export const PRIORITY: Record<
   AlertPriority,
   { label: string; text: string; bg: string; border: string; chip: string; tint: string; stroke: string; flash: string }
 > = {
   // Colors come from the theme tokens (src/styles/tokens.css), so they follow light / dark mode.
-  1: { label: "P1", text: "text-alarm", bg: "bg-alarm", border: "border-alarm", chip: "bg-chip-p1 text-chip-p1-fg", tint: "bg-tint-p1", stroke: "var(--kj-alarm)", flash: "kijo-flash-fast" },
-  2: { label: "P2", text: "text-warn-ink", bg: "bg-warn", border: "border-warn", chip: "bg-chip-p2 text-chip-p2-fg ring-1 ring-inset ring-warn", tint: "bg-tint-p2", stroke: "var(--kj-warn)", flash: "kijo-flash-slow" },
-  3: { label: "P3", text: "text-info", bg: "bg-info", border: "border-info/70", chip: "bg-chip-p3 text-chip-p3-fg", tint: "bg-tint-p3", stroke: "var(--kj-info)", flash: "" },
+  1: { label: "Critical", text: "text-alarm", bg: "bg-alarm", border: "border-alarm", chip: "bg-chip-p1 text-chip-p1-fg", tint: "bg-tint-p1", stroke: "var(--kj-alarm)", flash: "kijo-flash-fast" },
+  2: { label: "Urgent", text: "text-warn-ink", bg: "bg-warn", border: "border-warn", chip: "bg-chip-p2 text-chip-p2-fg ring-1 ring-inset ring-warn", tint: "bg-tint-p2", stroke: "var(--kj-warn)", flash: "kijo-flash-slow" },
+  3: { label: "Routine", text: "text-info", bg: "bg-info", border: "border-info/70", chip: "bg-chip-p3 text-chip-p3-fg", tint: "bg-tint-p3", stroke: "var(--kj-info)", flash: "" },
 };
 export const OK_STROKE = "var(--kj-ok)";
 /** Pulse line on a calm (no alarm) tile: neutral, so color only means "alarm". */
@@ -41,7 +42,7 @@ export const ALERT_LABEL: Record<AlertType, string> = {
   need_help: "Help",
   vitals: "Vitals",
   inactivity: "No movement",
-  up_at_night: "Resident is up — fall risk",
+  up_at_night: "Up at night (fall risk)",
 };
 
 export const ALERT_ICON: Record<AlertType, Icon> = {
@@ -57,7 +58,7 @@ export const ALERT_ICON: Record<AlertType, Icon> = {
   up_at_night: Moon,
 };
 
-/** "Josh · G1" for QR guests (live patients), "Room 3 · Mr. Ortiz" for demo residents. */
+/** "Josh · G1" for QR guests (live residents), "Room 3 · Mr. Ortiz" for demo residents. */
 export function residentTitle(r: Pick<Resident, "name" | "room" | "isGuest"> | undefined): string {
   if (!r) return "Unknown resident";
   return r.isGuest ? `${r.name} · ${r.room}` : `Room ${r.room} · ${r.name}`;

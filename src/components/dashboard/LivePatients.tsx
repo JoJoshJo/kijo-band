@@ -16,7 +16,7 @@ function lastActivity(r: Resident, alerts: Alert[]): number {
 }
 
 /**
- * Main nurse view: joined QR guests ("Live patients") on top as the largest tiles, most recent activity
+ * Main nurse view: joined QR guests ("Live residents") on top as the largest tiles, most recent activity
  * first; her demo residents (3 — one French, one non-verbal, one high fall-risk) shown below.
  */
 export default function LivePatients({
@@ -38,9 +38,9 @@ export default function LivePatients({
 
   return (
     <div className="flex flex-col gap-4">
-      <section aria-labelledby="live-patients">
-        <h2 id="live-patients" className="mb-2 flex items-center gap-2">
-          <span className="label-caps">Live patients</span>
+      <section aria-labelledby="live-residents">
+        <h2 id="live-residents" className="mb-2 flex items-center gap-2">
+          <span className="label-caps">Live residents</span>
           <span className="num rounded-full bg-surface-2 px-2 text-xs text-ink">
             {guests.length}
           </span>
@@ -49,7 +49,7 @@ export default function LivePatients({
           <div className="flex flex-col items-center gap-3 rounded-card border border-dashed border-line-2 px-6 py-10 text-center">
             <QrCode size={40} className="text-muted" aria-hidden />
             <p className="text-base font-medium text-ink">
-              No patients joined yet — scan the QR
+              No one has joined yet. Scan the QR code to join from a phone.
             </p>
             <button
               type="button"
@@ -57,7 +57,7 @@ export default function LivePatients({
               className="inline-flex h-9 items-center gap-2 rounded-btn border border-line-2 px-3 text-sm font-medium text-ink transition-colors hover:bg-surface-2"
             >
               <QrCode size={18} aria-hidden />
-              Show QR
+              Show QR code
             </button>
           </div>
         ) : (

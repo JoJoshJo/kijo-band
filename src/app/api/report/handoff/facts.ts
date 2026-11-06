@@ -164,8 +164,8 @@ export function ruleReason(r: ResidentFacts): string {
   const parts: string[] = [];
   if (r.falls) parts.push(plural(r.falls, "fall"));
   const otherP1 = r.p1 - r.falls;
-  if (otherP1 > 0) parts.push(plural(otherP1, r.falls ? "other P1 alert" : "P1 alert"));
-  if (r.residentSaysOk) parts.push(`said "I'm OK" after a P1 — still check`);
+  if (otherP1 > 0) parts.push(plural(otherP1, r.falls ? "other critical alert" : "critical alert"));
+  if (r.residentSaysOk) parts.push(`said "I'm OK" after a critical alert, check on them anyway`);
   if (r.inactivity) parts.push("no movement detected");
   if (r.upAtNight) parts.push(`up at night ${r.upAtNight}×`);
   const repeated = (Object.entries(r.byType) as [AlertType, number][])
@@ -181,22 +181,22 @@ export function ruleRecommendations(f: ShiftFacts): string[] {
   const recs: string[] = [];
   const byScore = [...f.residents].sort((a, b) => attentionScore(b) - attentionScore(a));
   for (const r of byScore) {
-    if (r.falls >= 2) recs.push(`Room ${r.room} (${r.name}) had ${r.falls} falls tonight — review the fall-risk plan.`);
-    else if (r.falls === 1) recs.push(`Room ${r.room} (${r.name}) fell overnight — check for injury and update the fall-risk assessment.`);
+    if (r.falls >= 2) recs.push(`Room ${r.room} (${r.name}) had ${r.falls} falls tonight. Review the fall-risk plan.`);
+    else if (r.falls === 1) recs.push(`Room ${r.room} (${r.name}) fell overnight. Check for injury and update the fall-risk assessment.`);
   }
   for (const r of byScore) {
-    if (r.inactivity) recs.push(`Room ${r.room} (${r.name}) had a no-movement alert — see them first this morning.`);
-    if (r.upAtNight >= 1) recs.push(`Room ${r.room} (${r.name}) was up at night ${r.upAtNight}× — review toileting and bed-exit plan.`);
+    if (r.inactivity) recs.push(`Room ${r.room} (${r.name}) had a no-movement alert. See them first this morning.`);
+    if (r.upAtNight >= 1) recs.push(`Room ${r.room} (${r.name}) was up at night ${r.upAtNight}×. Review toileting and bed-exit plan.`);
   }
-  if (f.totals.open) recs.push(`${plural(f.totals.open, "alert")} still open — hand them over in person.`);
+  if (f.totals.open) recs.push(`${plural(f.totals.open, "alert")} still open. Hand them over in person.`);
   if (f.totals.escalations >= 2) {
-    recs.push(`${f.totals.escalations} alerts escalated to the charge nurse — consider extra cover at peak times.`);
+    recs.push(`${f.totals.escalations} alerts escalated to the charge nurse. Consider extra cover at peak times.`);
   }
   for (const r of byScore) {
     const water = r.byType.need_water ?? 0;
     const bath = r.byType.need_bathroom ?? 0;
-    if (water >= 2) recs.push(`Room ${r.room} (${r.name}) asked for water ${water}× — leave water within reach at bedtime.`);
-    if (bath >= 2) recs.push(`Room ${r.room} (${r.name}) needed the bathroom ${bath}× — consider a scheduled toileting round.`);
+    if (water >= 2) recs.push(`Room ${r.room} (${r.name}) asked for water ${water}×. Leave water within reach at bedtime.`);
+    if (bath >= 2) recs.push(`Room ${r.room} (${r.name}) needed the bathroom ${bath}×. Consider a scheduled toileting round.`);
   }
   const unique = [...new Set(recs)].slice(0, 3);
   return unique.length ? unique : ["Quiet night — no follow-ups needed beyond the usual morning checks."];
@@ -236,24 +236,24 @@ export function formatMs(ms: number | null): string {
 /** Adds the plain-text version used by the Copy button. */
 export function finalize(h: Omit<Handoff, "text">): Handoff {
   const lines = [
-    "KIJO — NIGHT SHIFT HANDOFF",
-    `${h.totals.alerts} alerts (P1 ${h.totals.p1} · P2 ${h.totals.p2} · P3 ${h.totals.p3}) · ${h.totals.escalations} escalated · ${h.totals.open} still open`,
+    "Kijo night-shift handoff",
+    `${h.totals.alerts} alerts (critical ${h.totals.p1} · urgent ${h.totals.p2} · routine ${h.totals.p3}) · ${h.totals.escalations} escalated · ${h.totals.open} still open`,
     "",
-    "NEEDS ATTENTION THIS MORNING",
-    ...(h.needsAttention.length ? h.needsAttention.map((a) => `- Room ${a.room} · ${a.name}: ${a.reason}`) : ["- Nobody flagged."]),
+    "Needs attention this morning",
+    ...(h.needsAttention.length ? h.needsAttention.map((a) => `- Room ${a.room} · ${a.name}: ${a.reason}`) : ["- No one flagged."]),
     "",
-    "BY NURSE",
+    "By nurse",
     ...h.nurses.map(
       (n) =>
         `- ${n.name} (${n.role}): ${n.handled}/${n.alerts} handled · avg response ${formatMs(n.avgResponseMs)}` +
         (n.open.length ? ` · open: ${n.open.map((o) => `Room ${o.room} ${TYPE_LABEL[o.type]}`).join(", ")}` : "") +
-        (n.note ? ` — ${n.note}` : ""),
+        (n.note ? `. ${n.note}` : ""),
     ),
     "",
-    "RECOMMENDATIONS",
+    "Recommendations",
     ...h.recommendations.map((r, i) => `${i + 1}. ${r}`),
     "",
-    h.source === "claude" ? "Drafted by Claude from tonight's alerts — verify before acting." : "Rule-based summary from tonight's alerts.",
+    h.source === "claude" ? "Drafted by Claude from tonight's alerts. Check before acting." : "Rule-based summary from tonight's alerts.",
   ];
   return { ...h, text: lines.join("\n") };
 }

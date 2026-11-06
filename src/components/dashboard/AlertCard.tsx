@@ -62,7 +62,7 @@ export default function AlertCard({
       await patchAlert(alert.id, { action, nurseId });
       onChanged();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Action failed");
+      setError(e instanceof Error ? e.message : "Could not save. Try again.");
     } finally {
       setBusy(null);
     }
@@ -114,7 +114,7 @@ export default function AlertCard({
       {saysOk && (
         <span className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-ok/50 bg-ok/10 px-2 py-0.5 text-xs font-medium text-ink">
           <CheckCircle size={14} weight="bold" className="text-ok" aria-hidden />
-          Resident says OK — still check
+          Says they’re OK. Check on them anyway.
         </span>
       )}
       <p className="mt-2 text-sm text-ink/90">{summary}</p>
@@ -155,11 +155,11 @@ export default function AlertCard({
             onClick={() => run("acknowledge", actingNurseId)}
             className={`${BTN} bg-brand text-on-brand hover:bg-brand-hover`}
           >
-            {busy === "acknowledge" ? "…" : "I'm on it"}
+            {busy === "acknowledge" ? "Saving…" : "I'm on it"}
           </button>
         )}
         <button type="button" disabled={busy !== null} onClick={() => run("resolve")} className={SECONDARY}>
-          {busy === "resolve" ? "…" : "Resolve"}
+          {busy === "resolve" ? "Saving…" : "Resolve"}
         </button>
         {alert.priority === 1 && assistOptions.length > 0 && (
           <span className="flex items-center gap-2">
@@ -169,7 +169,7 @@ export default function AlertCard({
               className="h-12 rounded-btn border border-line-2 bg-surface px-2 text-sm text-ink lg:h-9"
               aria-label="Nurse to assist"
             >
-              <option value="">Nurse…</option>
+              <option value="">Choose nurse</option>
               {assistOptions.map((n) => (
                 <option key={n.id} value={n.id}>
                   {nurseShort(n)}
@@ -185,7 +185,7 @@ export default function AlertCard({
               }}
               className={SECONDARY}
             >
-              {busy === "assist" ? "…" : "Assist"}
+              {busy === "assist" ? "Saving…" : "Assist"}
             </button>
           </span>
         )}

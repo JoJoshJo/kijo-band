@@ -21,7 +21,7 @@ export default function ConnectionBanner({
   return (
     <div role="alert" className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-line-2 bg-surface-2 px-4 py-2 text-sm text-ink">
       <WifiSlash size={18} className="text-muted" aria-hidden />
-      <span className="font-semibold">Connection lost — retrying…</span>
+      <span className="font-semibold">Connection lost. Reconnecting…</span>
       <span className="text-muted">
         {age != null ? (
           <>

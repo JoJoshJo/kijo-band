@@ -7,7 +7,7 @@ import { residentTitle } from "./util";
 
 export type PatientAction = "move" | "remove";
 
-/** Small "…" menu in a tile's top-right corner (Charge view): Move to nurse… / Remove patient. */
+/** Small "…" menu in a tile's top-right corner (Charge view): Move to nurse / Remove resident. */
 export default function PatientMenu({ resident, onAction }: { resident: Resident; onAction: (a: PatientAction) => void }) {
   const [open, setOpen] = useState(false);
   const [alignLeft, setAlignLeft] = useState(false); // open rightwards when there is no room on the left
@@ -62,11 +62,11 @@ export default function PatientMenu({ resident, onAction }: { resident: Resident
         >
           <button ref={firstItem} type="button" role="menuitem" onClick={() => pick("move")} className={item}>
             <ArrowsLeftRight size={16} aria-hidden className="text-muted" />
-            Move to nurse…
+            Move to nurse
           </button>
           <button type="button" role="menuitem" onClick={() => pick("remove")} className={item}>
             <UserMinus size={16} aria-hidden className="text-muted" />
-            Remove patient
+            Remove resident
           </button>
         </div>
       )}

@@ -7,9 +7,9 @@ import { MAIN_NURSE_ID } from "@/lib/demoConfig";
 
 const ENTRIES = [
   { href: nurseHref(MAIN_NURSE_ID), icon: Stethoscope, title: "Nurse view", text: "Your residents and your alert queue" },
-  { href: "/patient", icon: Watch, title: "Patient view", text: "The Kijo Band, as a resident wears it" },
-  { href: "/dashboard", icon: ShieldCheck, title: "Charge view", text: "Whole floor, escalations, Night Report" },
-  { href: "/join", icon: QrCode, title: "Join as a resident", text: "Scan the QR and become a guest room" },
+  { href: "/patient", icon: Watch, title: "Resident view", text: "The Kijo Band, as a resident wears it" },
+  { href: "/dashboard", icon: ShieldCheck, title: "Charge view", text: "The whole floor, escalations and the night report" },
+  { href: "/join", icon: QrCode, title: "Join as a resident", text: "Scan the QR code and use your phone as a band" },
 ] as const;
 
 export default function Home() {
@@ -28,7 +28,7 @@ export default function Home() {
           </span>
         )}
         <h1 className="text-display font-semibold tracking-[0.4em] text-ink">KIJO</h1>
-        <p className="text-base text-muted">Caregiver platform · night-shift response</p>
+        <p className="text-base text-muted">Night-shift alerts for care homes</p>
       </div>
 
       <nav aria-label="Open a view" className="grid w-full max-w-3xl grid-cols-1 gap-4 sm:grid-cols-2">

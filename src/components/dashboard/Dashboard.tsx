@@ -95,8 +95,8 @@ export default function Dashboard({ logoSrc }: { logoSrc: string | null }) {
         actions={
           <>
             <SoundToggle sound={sound} />
-            <HeaderButton icon={<ChartBar size={18} aria-hidden />} label="Night Report" onClick={() => setModal("report")} />
-            <HeaderButton icon={<QrCode size={18} aria-hidden />} label="QR · Join" onClick={() => setModal("qr")} />
+            <HeaderButton icon={<ChartBar size={18} aria-hidden />} label="Night report" onClick={() => setModal("report")} />
+            <HeaderButton icon={<QrCode size={18} aria-hidden />} label="Join QR code" onClick={() => setModal("qr")} />
             <HeaderButton
               icon={<ArrowCounterClockwise size={18} aria-hidden />}
               label="Reset demo"
@@ -111,11 +111,11 @@ export default function Dashboard({ logoSrc }: { logoSrc: string | null }) {
       <div className="flex flex-1 flex-col gap-4 p-4 lg:grid lg:min-h-0 lg:grid-cols-[minmax(0,1fr)_460px]">
         <div className="order-2 flex flex-col gap-2 lg:order-none lg:min-h-0 lg:overflow-y-auto lg:pr-1">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="label-caps mr-auto">Patients · {residents.length}</span>
-            <AdminButton icon={<Plus size={16} aria-hidden />} label="Add patient" onClick={() => setModal("add")} />
+            <span className="label-caps mr-auto">Residents · {residents.length}</span>
+            <AdminButton icon={<Plus size={18} aria-hidden />} label="Add resident" onClick={() => setModal("add")} />
             <AdminButton
-              icon={<Broom size={16} aria-hidden />}
-              label={`Clear test patients (${guestCount})`}
+              icon={<Broom size={18} aria-hidden />}
+              label={`Clear joined residents (${guestCount})`}
               onClick={() => setModal("clear")}
               disabled={guestCount === 0}
             />

@@ -16,7 +16,7 @@ export default function ResidentTile({
   size = "md",
   reserveCorner = false,
 }: {
-  reserveCorner?: boolean; // leave room top-right for the Charge view's patient menu
+  reserveCorner?: boolean; // leave room top-right for the Charge view's resident menu
   size?: "md" | "lg"; // lg = per-nurse view (fewer, bigger tiles)
   resident: Resident;
   heartRate: number; // displayed value (may include client-side drift)
@@ -34,9 +34,9 @@ export default function ResidentTile({
     <button
       type="button"
       onClick={() => onSelect(resident.id)}
-      aria-label={`${resident.isGuest ? `${resident.name}, ${resident.room}` : `Room ${resident.room}, ${resident.name}`}, ${heartRate} bpm${hrWarning ? " (HR warning)" : ""}${
+      aria-label={`${resident.isGuest ? `${resident.name}, ${resident.room}` : `Room ${resident.room}, ${resident.name}`}, ${heartRate} bpm${hrWarning ? " (heart rate warning)" : ""}${
         alert ? `, ${p!.label} ${ALERT_LABEL[alert.type]}${open ? "" : " acknowledged"}` : ", OK"
-      }${resident.motionState ? `, ${MOTION_LABEL[resident.motionState]}` : ""} — open quick info`}
+      }${resident.motionState ? `, ${MOTION_LABEL[resident.motionState]}` : ""}. Open details`}
       className={`relative flex flex-col gap-1 rounded-card border text-left transition-colors ${lg ? "p-4" : "p-3"} ${
         p ? `${p.border} ${p.tint}` : "border-line-2 bg-surface-2 hover:border-muted/50"
       }`}
@@ -46,7 +46,7 @@ export default function ResidentTile({
         <span aria-hidden className={`pointer-events-none absolute -inset-px rounded-card border-2 ${p.border} ${p.flash}`} />
       )}
       <div className={`flex items-center justify-between gap-2 ${reserveCorner ? "min-h-6 pr-8" : ""}`}>
-        <span className="label-caps">{resident.isGuest ? "Live patient" : `Room ${resident.room}`}</span>
+        <span className="label-caps">{resident.isGuest ? "Live resident" : `Room ${resident.room}`}</span>
         <span className="flex items-center gap-1">
           {!resident.canSpeak && <span className="text-xs text-muted">Non-verbal</span>}
           {resident.motionState && (
@@ -81,7 +81,7 @@ export default function ResidentTile({
             <TypeIcon size={lg ? 16 : 14} weight="bold" aria-hidden />
             {p.label}
             <span className={lg ? "" : "hidden sm:inline"}>· {ALERT_LABEL[alert.type]}</span>
-            {!open && <span className="font-medium">· Ack</span>}
+            {!open && <span className="font-medium">· On it</span>}
           </span>
         ) : (
           <span className="inline-flex items-center gap-1 text-xs font-medium text-muted">

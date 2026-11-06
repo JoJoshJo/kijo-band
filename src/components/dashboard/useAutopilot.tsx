@@ -11,16 +11,16 @@ import { isTypingTarget } from "./views";
 type Step = { at: number; label: string; url: "/api/alert" | "/api/triage"; body: Record<string, unknown> };
 
 const STEPS: Step[] = [
-  { at: 0, label: "P3 water · Room 3", url: "/api/alert", body: { residentId: "r-03", type: "need_water" } },
+  { at: 0, label: "Routine: water, Room 3", url: "/api/alert", body: { residentId: "r-03", type: "need_water" } },
   {
     at: 8_000,
-    label: "P2 voice (FR) · Room 2",
+    label: "Urgent: French voice call, Room 2",
     url: "/api/triage",
     body: { residentId: "r-02", transcript: "j'ai mal au dos", language: "fr" },
   },
   {
     at: 16_000,
-    label: "P1 fall · Room 14",
+    label: "Critical: fall, Room 14",
     url: "/api/alert",
     body: { residentId: "r-14", type: "fall", source: "detector", heartRate: 104 },
   },
@@ -72,7 +72,7 @@ export function useAutopilot(alerts: Alert[]) {
       const id = p1Id.current;
       if (id && alertsRef.current.some((a) => a.id === id && a.escalatedTo)) {
         clearInterval(watch);
-        setStatus("Escalated — done");
+        setStatus("Escalated. Done.");
         later(3_000, stop);
       }
     }, 1_000);

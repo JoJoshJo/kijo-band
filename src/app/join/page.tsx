@@ -4,7 +4,7 @@ import JoinForm from "./JoinForm";
 
 export const metadata: Metadata = {
   title: "Join Kijo",
-  description: "Scan to become a resident — try Kijo Band on your phone",
+  description: "Use your phone as a Kijo Band",
 };
 
 export const viewport: Viewport = {
@@ -21,9 +21,9 @@ export default function JoinPage() {
       <div className="overflow-hidden rounded-[22%] bg-white">
         <Image src="/icons/icon-192.png" alt="Kijo" width={88} height={88} priority />
       </div>
-      <h1 className="mt-5 text-center text-3xl font-semibold">You&apos;re a resident now</h1>
+      <h1 className="mt-5 text-center text-3xl font-semibold">Join as a resident</h1>
       <p className="mt-2 max-w-sm text-center text-xl text-muted">
-        Your phone becomes a Kijo Band. Tap a button, say “Kijo…” or call “help” — a nurse is alerted in seconds.
+        Your phone becomes a Kijo Band. Tap a button, or say “Kijo” and what you need. A nurse gets the alert.
       </p>
       <JoinForm />
     </main>

@@ -15,12 +15,11 @@ function formatResponse(ms: number): string {
   return formatDuration(ms);
 }
 
-const PRIORITY_NAME: Record<AlertPriority, string> = { 1: "Critical", 2: "Urgent", 3: "Routine" };
 
 function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
     <div className="rounded-card border border-line bg-surface-2 px-4 py-3">
-      <div className="text-xs font-semibold tracking-widest text-muted">{label}</div>
+      <div className="label-caps">{label}</div>
       <div className="num mt-1 text-display text-ink">{value}</div>
       {sub && <div className="mt-0.5 text-xs leading-snug text-muted">{sub}</div>}
     </div>
@@ -36,7 +35,7 @@ function PriorityBars({ byPriority }: { byPriority: NightReport["byPriority"] })
 
   return (
     <figure>
-      <figcaption className="mb-3 text-xs font-semibold tracking-widest text-muted">ALERTS BY PRIORITY</figcaption>
+      <figcaption className="label-caps mb-3">Alerts by priority</figcaption>
       <div className="relative flex items-end gap-6 border-b border-line-2 px-4" style={{ height: H + 28 }}>
         {priorities.map((p) => {
           const n = byPriority[p];
@@ -57,7 +56,7 @@ function PriorityBars({ byPriority }: { byPriority: NightReport["byPriority"] })
               />
               {hover === p && (
                 <div className="pointer-events-none absolute -top-2 z-10 -translate-y-full whitespace-nowrap rounded border border-line-2 bg-surface px-2 py-1 text-xs text-ink shadow">
-                  {PRIORITY[p].label} {PRIORITY_NAME[p]}: <b>{n}</b> alert{n === 1 ? "" : "s"}
+                  {PRIORITY[p].label}: <b>{n}</b> alert{n === 1 ? "" : "s"}
                 </div>
               )}
             </div>
@@ -67,7 +66,7 @@ function PriorityBars({ byPriority }: { byPriority: NightReport["byPriority"] })
       <div className="flex gap-6 px-4 pt-1.5">
         {priorities.map((p) => (
           <div key={p} className="flex-1 text-center text-xs text-ink">
-            {PRIORITY[p].label} · {PRIORITY_NAME[p]}
+            {PRIORITY[p].label}
           </div>
         ))}
       </div>
@@ -77,7 +76,7 @@ function PriorityBars({ byPriority }: { byPriority: NightReport["byPriority"] })
         <tbody>
           {priorities.map((p) => (
             <tr key={p}>
-              <th scope="row">{PRIORITY[p].label} {PRIORITY_NAME[p]}</th>
+              <th scope="row">{PRIORITY[p].label}</th>
               <td>{byPriority[p]}</td>
             </tr>
           ))}
@@ -95,34 +94,34 @@ export default function NightReportModal({ onClose }: { onClose: () => void }) {
   );
 
   return (
-    <Modal title="Night Report" onClose={onClose} wide>
+    <Modal title="Night report" onClose={onClose} wide>
       {error ? (
-        <p className="text-sm text-ink">Could not load the report.</p>
+        <p className="text-sm text-ink">Could not load the report. Close it and try again.</p>
       ) : !data ? (
         <p className="text-sm text-muted">Loading…</p>
       ) : (
         <div className="flex flex-col gap-5">
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <Stat label="TOTAL ALERTS" value={String(data.total)} sub={`${data.stillOpen} still open`} />
+            <Stat label="Alerts" value={String(data.total)} sub={`${data.stillOpen} still open`} />
             <Stat
-              label="AVG ACK TIME"
+              label="Average response"
               value={data.avgAckMs == null ? "—" : formatResponse(data.avgAckMs)}
               sub={`${data.acknowledged} acknowledged`}
             />
             <Stat
-              label="SLOWEST ACK"
+              label="Slowest response"
               value={data.slowest ? formatResponse(data.slowest.ackMs) : "—"}
               sub={
                 data.slowest
                   ? `Room ${data.slowest.room} · ${data.slowest.name} · ${ALERT_LABEL[data.slowest.type]}`
-                  : "No acknowledged alerts yet"
+                  : "No responses yet"
               }
             />
-            <Stat label="ESCALATIONS" value={String(data.escalations)} sub="to charge nurse" />
+            <Stat label="Escalations" value={String(data.escalations)} sub="to the charge nurse" />
           </div>
           <PriorityBars byPriority={data.byPriority} />
           <HandoffPanel />
-          <p className="text-xs text-muted">All alerts since the last demo reset · fictional demo data</p>
+          <p className="text-xs text-muted">All alerts since the last demo reset. Fictional demo data.</p>
         </div>
       )}
     </Modal>
