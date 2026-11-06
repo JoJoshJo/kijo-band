@@ -26,7 +26,7 @@ import {
   Translate,
   type Icon,
 } from "@phosphor-icons/react";
-import { useMotionDetection } from "./_lib/useMotionDetection";
+import { useMotionDetection, type MotionDebug } from "./_lib/useMotionDetection";
 import { useVoiceTrigger, type VoiceProblem, type VoiceSnapshot } from "./_lib/useVoiceTrigger";
 import { isEmergency } from "@/lib/detection/voice";
 import PulseCheck from "./PulseCheck";
@@ -583,6 +583,7 @@ function Band({ residentId, embedded }: { residentId: string; embedded: boolean 
             rateLimited={rateLimitedAt > 0 && now - rateLimitedAt < 5000}
           />
         )}
+        {debug && <MotionDebugPanel read={motion.debug} />}
 
         {pulseOpen && <PulseCheck t={t} onClose={() => setPulseOpen(false)} onResult={onPulseResult} />}
 
@@ -632,6 +633,31 @@ function VoiceDebug({
   ];
   return (
     <section aria-label="Voice debug" className="rounded-card border border-line bg-surface p-3 font-mono text-base">
+      {rows.map(([k, v]) => (
+        <div key={k} className="flex gap-2">
+          <span className="w-20 shrink-0 text-muted">{k}</span>
+          <span className="break-words" data-debug={k}>{v}</span>
+        </div>
+      ))}
+    </section>
+  );
+}
+
+/** ?debug=1 only: shake / fall detector, refreshed 4× a second. */
+function MotionDebugPanel({ read }: { read: () => MotionDebug }) {
+  const [d, setD] = useState<MotionDebug | null>(null);
+  useEffect(() => {
+    const id = setInterval(() => setD(read()), 250);
+    return () => clearInterval(id);
+  }, [read]);
+  if (!d) return null;
+  const rows: [string, string][] = [
+    ["motion", d.attached ? `${d.hz} Hz${d.hz === 0 ? " · no samples (permission?)" : ""}` : "not started"],
+    ["peak", `${d.peakG.toFixed(2)} g dynamic · ${d.peaks} peak${d.peaks === 1 ? "" : "s"} in 1.5 s`],
+    ["detector", `${d.decision || "—"} · fall path ${d.fall}`],
+  ];
+  return (
+    <section aria-label="Motion debug" className="rounded-card border border-line bg-surface p-3 font-mono text-base">
       {rows.map(([k, v]) => (
         <div key={k} className="flex gap-2">
           <span className="w-20 shrink-0 text-muted">{k}</span>

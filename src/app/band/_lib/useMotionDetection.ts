@@ -9,6 +9,35 @@ export interface MotionHandle {
   takeMoved: () => boolean;
   /** Current activity state ("moving" / "still" / "lying"), null until enough samples. */
   motionState: () => MotionState | null;
+  /** ?debug=1 only: sample rate, live peak g, peaks in the shake window, last shake/fall decision. */
+  debug: () => MotionDebug;
+}
+
+export interface MotionDebug {
+  /** devicemotion events in the last second (0 = no events: permission denied / unsupported) */
+  hz: number;
+  /** Listener attached (after Start) */
+  attached: boolean;
+  peakG: number;
+  peaks: number;
+  decision: string;
+  fall: string;
+}
+
+/** Debug only: devicemotion rate and whether the listener is attached. */
+class SampleStats {
+  private times: number[] = [];
+  attached = false;
+  setAttached(on: boolean) {
+    this.attached = on;
+  }
+  mark(t: number) {
+    this.times.push(t);
+    if (this.times.length > 240) this.times.splice(0, this.times.length - 240);
+  }
+  hz(now: number) {
+    return this.times.filter((t) => now - t <= 1000).length;
+  }
 }
 
 /**
@@ -22,9 +51,14 @@ export function useMotionDetection(
 ): MotionHandle {
   const [detector] = useState(() => new MotionDetector());
   const [activity] = useState(() => new ActivityMonitor());
+  const [stats] = useState(() => new SampleStats());
   const [handle] = useState<MotionHandle>(() => ({
     takeMoved: () => detector.takeMoved(),
     motionState: () => activity.current,
+    debug: () => {
+      const now = performance.now();
+      return { hz: stats.hz(now), attached: stats.attached, ...detector.debug() };
+    },
   }));
   const onEventRef = useRef(onEvent);
   const onActivityRef = useRef(onActivity);
@@ -37,7 +71,9 @@ export function useMotionDetection(
     if (!enabled || typeof window === "undefined" || !("DeviceMotionEvent" in window)) return;
     detector.reset();
     activity.reset();
+    stats.setAttached(true);
     const onMotion = (ev: DeviceMotionEvent) => {
+      stats.mark(performance.now());
       const a = ev.accelerationIncludingGravity;
       if (!a || a.x == null || a.y == null || a.z == null) return;
       const sample = { t: ev.timeStamp || performance.now(), x: a.x, y: a.y, z: a.z };
@@ -46,8 +82,11 @@ export function useMotionDetection(
       for (const ae of activity.push(sample)) onActivityRef.current?.(ae);
     };
     window.addEventListener("devicemotion", onMotion);
-    return () => window.removeEventListener("devicemotion", onMotion);
-  }, [enabled, detector, activity]);
+    return () => {
+      stats.setAttached(false);
+      window.removeEventListener("devicemotion", onMotion);
+    };
+  }, [enabled, detector, activity, stats]);
 
   return handle;
 }

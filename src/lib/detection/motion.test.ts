@@ -205,3 +205,98 @@ test("takeMoved reports movement once", () => {
   assert.equal(d.takeMoved(), true);
   assert.equal(d.takeMoved(), false);
 });
+
+// ── Realistic hand shakes (J's phone: 1.6–3 g total, peaks 150–350 ms apart, 3–4 shakes in ~1.5 s) ──
+
+/** A wrist flick: smooth travel, then a sharp stop (narrow peak) at each end of the stroke, plus noise. */
+function handShake(tl: Timeline, opts: { hz: number; amp: number; axis: [number, number, number]; shakes: number; seed?: number }) {
+  const r = rng(opts.seed ?? 11);
+  const dur = (opts.shakes / opts.hz) * 1000;
+  return tl.add(dur, (_t, l) => {
+    const ph = ((l * opts.hz) / 1000) % 1;
+    const sgn = ph < 0.5 ? 1 : -1;
+    const p = (ph % 0.5) / 0.5;
+    const a = sgn * (p > 0.8 ? opts.amp * Math.sin((Math.PI * (p - 0.8)) / 0.2) : -0.35 * Math.sin((Math.PI * p) / 0.8));
+    const [ax, ay, az] = opts.axis;
+    return [ax * a + r() * 0.08, ay * a + r() * 0.08, 1 + az * a + r() * 0.08];
+  });
+}
+
+const REAL_SHAKES: [string, { hz: number; amp: number; axis: [number, number, number] }][] = [
+  ["side to side, firm 1.6 g at 2.5 Hz (was missed: total peaks only 1.84 g)", { hz: 2.5, amp: 1.6, axis: [1, 0, 0] }],
+  ["side to side, 1.4 g sine-like at 3 Hz", { hz: 3, amp: 1.4, axis: [1, 0, 0] }],
+  ["up and down, 2.5 g at 2 Hz (was missed: every other stroke against gravity)", { hz: 2, amp: 2.5, axis: [0, 0, 1] }],
+  ["diagonal, 2.5 g at 2 Hz (was missed)", { hz: 2, amp: 2.5, axis: [0.7, 0, 0.7] }],
+  ["diagonal, 2 g at 3 Hz", { hz: 3, amp: 2, axis: [0.7, 0, 0.7] }],
+  ["forward and back (y), 1.8 g at 3.5 Hz", { hz: 3.5, amp: 1.8, axis: [0, 1, 0] }],
+];
+for (const [name, o] of REAL_SHAKES) {
+  test(`real shake: ${name} → shake`, () => {
+    const tl = new Timeline().still(800);
+    handShake(tl, { ...o, shakes: 4 });
+    tl.still(1500);
+    const events = run(tl.samples);
+    assert.equal(events.length, 1, JSON.stringify(events));
+    assert.equal(events[0].type, "shake");
+  });
+}
+
+test("only two shakes → nothing (needs 3–4)", () => {
+  const tl = new Timeline().still(800);
+  handShake(tl, { hz: 3, amp: 2, axis: [1, 0, 0], shakes: 1 }); // one back-and-forth = 2 stops
+  tl.still(3000);
+  assert.deepEqual(run(tl.samples), []);
+});
+
+test("picking the phone up from the table (flat → upright, lifted) → nothing", () => {
+  const tl = new Timeline().still(1000);
+  tl.add(500, (_t, l) => {
+    const th = (Math.PI / 2) * Math.min(1, l / 400); // rotate 90° in 0.4 s
+    const lift = 0.4 * Math.sin((Math.PI * l) / 500);
+    return [0, Math.sin(th), Math.cos(th) + lift];
+  });
+  tl.add(4000, () => [0, 1, 0]);
+  assert.deepEqual(run(tl.samples), []);
+});
+
+test("putting the phone down firmly on the table → nothing", () => {
+  const tl = new Timeline()
+    .add(1000, () => [0, 1, 0])
+    .add(400, (_t, l) => {
+      const th = (Math.PI / 2) * (1 - l / 400);
+      return [0, Math.sin(th), Math.cos(th)];
+    })
+    .add(40, () => [0.2, 0.1, 2.6]) // thud
+    .still(4000);
+  assert.deepEqual(run(tl.samples), []);
+});
+
+test("walking while turning the phone over in the hand → nothing", () => {
+  const tl = new Timeline();
+  walking(tl, 20_000, { bounce: 0.45, heel: 1.0, seed: 5 });
+  // rotate gravity slowly between z and x during the walk
+  tl.samples = tl.samples.map((s) => {
+    const th = (Math.PI / 2) * (0.5 + 0.5 * Math.sin(s.t / 2000));
+    return { ...s, x: s.x * Math.cos(th) + s.z * Math.sin(th), z: -s.x * Math.sin(th) + s.z * Math.cos(th) };
+  });
+  assert.deepEqual(run(tl.samples), []);
+});
+
+test("gentle wave (0.8 g) → nothing", () => {
+  const tl = new Timeline().still(500).add(3000, (_t, l) => [0.8 * Math.sin((2 * Math.PI * 2 * l) / 1000), 0, 1]).still(1000);
+  assert.deepEqual(run(tl.samples), []);
+});
+
+test("debug(): live peak g, peaks in the window, last decision", () => {
+  const d = new MotionDetector();
+  const tl = new Timeline().still(800);
+  handShake(tl, { hz: 3, amp: 2, axis: [1, 0, 0], shakes: 4 });
+  let seen = 0;
+  for (const s of tl.samples) {
+    d.push(s);
+    seen = Math.max(seen, d.debug().peaks);
+  }
+  assert.ok(seen >= 2);
+  assert.ok(d.debug().peakG > 1.5, `peak ${d.debug().peakG}`);
+  assert.match(d.debug().decision, /^shake \(\d peaks\)$/);
+});
