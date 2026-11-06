@@ -20,6 +20,8 @@ export interface BandStrings {
   sending: string;
   sendFailed: string;
   waitMoment: string;
+  /** within the 10 s limit: the request already went out */
+  alreadySent: string;
   helpComing: string;
   /** {nurse} = nurse name */
   onTheWay: string;
@@ -110,6 +112,7 @@ export const STRINGS: Record<Language, BandStrings> = {
     sending: "Sending…",
     sendFailed: "Couldn't send. Please try again.",
     waitMoment: "Please wait a moment.",
+    alreadySent: "Already sent. Help is on the way.",
     helpComing: "Help is coming",
     onTheWay: "{nurse} is on the way",
     eta: "{time}",
@@ -183,6 +186,7 @@ export const STRINGS: Record<Language, BandStrings> = {
     sending: "Envoi…",
     sendFailed: "Échec de l'envoi. Réessayez.",
     waitMoment: "Un instant, s'il vous plaît.",
+    alreadySent: "C'est déjà envoyé. On arrive.",
     helpComing: "L'aide arrive",
     onTheWay: "{nurse} arrive",
     eta: "{time}",
@@ -256,6 +260,7 @@ export const STRINGS: Record<Language, BandStrings> = {
     sending: "Enviando…",
     sendFailed: "No se pudo enviar. Inténtelo de nuevo.",
     waitMoment: "Espere un momento, por favor.",
+    alreadySent: "Ya está enviado. Ya vienen.",
     helpComing: "La ayuda está en camino",
     onTheWay: "{nurse} va en camino",
     eta: "{time}",

@@ -124,9 +124,16 @@ export function wordCount(text: string): number {
   return text.split(/\s+/).filter((w) => /[\p{L}\p{N}]/u.test(w)).length;
 }
 
+export type BaseNeed = keyof (typeof BASE_PHRASES)["en"];
+
 /** Which need a short utterance asks for, or null (also null when it is longer than BASE_MAX_WORDS). */
-export function baseNeed(text: string, lang: Language): keyof (typeof BASE_PHRASES)["en"] | null {
+export function baseNeed(text: string, lang: Language): BaseNeed | null {
   if (wordCount(text) > BASE_MAX_WORDS) return null;
+  return baseNeedAnyLength(text, lang);
+}
+
+/** The need named by a base word anywhere in the text, whatever its length. */
+function baseNeedAnyLength(text: string, lang: Language): BaseNeed | null {
   const norm = normalize(text);
   if (!norm) return null;
   const sets = lang === "en" ? [BASE_PHRASES.en] : [BASE_PHRASES[lang], BASE_PHRASES.en];
@@ -199,6 +206,35 @@ export function backgroundIntent(text: string, lang: Language): BackgroundIntent
   const need = baseNeed(text, lang);
   if (need) return { kind: "base", text, need };
   return null;
+}
+
+/** Why background listening did or didn't act on an utterance (shown in the ?debug=1 panel). */
+export type VoiceDecision =
+  | { action: "send"; kind: "base" | "emergency" | "wake"; text: string; need?: BaseNeed }
+  | { action: "ask" } // "Kijo" alone → chime + "Yes?" → take the next utterance
+  | { action: "ignore"; reason: "too-long" | "no-trigger" | "empty" };
+
+/**
+ * The single source of truth for background listening (no tap):
+ * 1. "Kijo …" → everything after it (any length). "Kijo" alone → ask.
+ * 2. Emergency phrases → always (any length).
+ * 3. Base words (help / water / toilet / pain) → only in a short utterance (≤ 6 words).
+ * 4. Anything else → ignored ("too-long" when it named a need but was longer than 6 words).
+ */
+export function decideUtterance(text: string, lang: Language): VoiceDecision {
+  const t = text.replace(/\s+/g, " ").trim().slice(0, MAX_TRANSCRIPT_CHARS);
+  if (!normalize(t)) return { action: "ignore", reason: "empty" };
+  const intent = backgroundIntent(t, lang);
+  if (intent?.kind === "wake") return intent.command ? { action: "send", kind: "wake", text: intent.command } : { action: "ask" };
+  if (intent?.kind === "emergency") return { action: "send", kind: "emergency", text: intent.text };
+  if (intent?.kind === "base") return { action: "send", kind: "base", text: intent.text, need: intent.need };
+  return { action: "ignore", reason: baseNeedAnyLength(t, lang) ? "too-long" : "no-trigger" };
+}
+
+/** Same request again? (dedupe key: normalized text) */
+export function sameUtterance(a: string, b: string): boolean {
+  const na = normalize(a);
+  return !!na && na === normalize(b);
 }
 
 export interface TriageResult {
