@@ -1,5 +1,7 @@
 "use client";
 
+import { Check } from "@phosphor-icons/react";
+
 import { formatDuration } from "./util";
 
 /** Visual countdown to escalation. `remainingMs` null → acknowledged (ring shown full, teal). */
@@ -34,7 +36,7 @@ export default function CountdownRing({
         />
       </svg>
       <span className="absolute inset-0 flex items-center justify-center font-mono text-[10px] text-slate-200">
-        {remainingMs == null ? "✓" : formatDuration(remainingMs)}
+        {remainingMs == null ? <Check size={14} weight="bold" aria-label="Acknowledged" /> : formatDuration(remainingMs)}
       </span>
     </div>
   );

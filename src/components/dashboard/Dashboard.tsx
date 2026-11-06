@@ -1,5 +1,7 @@
 "use client";
 
+import { SpeakerHigh, SpeakerSlash } from "@phosphor-icons/react";
+
 import { useCallback, useState } from "react";
 import useSWR from "swr";
 import type { Resident, StateResponse } from "@/lib/types";
@@ -65,7 +67,7 @@ export default function Dashboard({ logoSrc }: { logoSrc: string | null }) {
   const badgeNurses = nurses.filter((n) => !podNurses.includes(n));
 
   return (
-    <div className="flex h-screen flex-col bg-[#070b14] text-slate-100">
+    <div className="flex h-screen flex-col bg-bg text-slate-100">
       <Header
         logoSrc={logoSrc}
         view="charge"
@@ -90,7 +92,10 @@ export default function Dashboard({ logoSrc }: { logoSrc: string | null }) {
                 sound.muted ? "border-slate-700 text-slate-500" : "border-slate-600 text-slate-200"
               } hover:bg-slate-800`}
             >
-              {sound.muted ? "🔇 Muted" : sound.ready ? "🔊 Sound on" : "🔈 Click to enable sound"}
+              <span className="inline-flex items-center gap-1.5">
+                {sound.muted ? <SpeakerSlash size={18} aria-hidden /> : <SpeakerHigh size={18} aria-hidden />}
+                {sound.muted ? "Muted" : sound.ready ? "Sound on" : "Click to enable sound"}
+              </span>
             </button>
             <button
               type="button"

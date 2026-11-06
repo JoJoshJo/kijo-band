@@ -1,5 +1,7 @@
 "use client";
 
+import { Check, Copy, Sparkle } from "@phosphor-icons/react";
+
 import { useState } from "react";
 import type { Handoff } from "@/app/api/report/handoff/facts";
 import { formatDuration } from "./util";
@@ -70,7 +72,7 @@ export default function HandoffPanel() {
             onClick={() => copy(state.handoff.text)}
             className="min-h-10 rounded-lg border border-slate-600 px-3 text-sm text-slate-200 hover:bg-slate-800"
           >
-            {copied ? "✓ Copied" : "Copy"}
+            <span className="inline-flex items-center gap-1.5">{copied ? <Check size={16} weight="bold" aria-hidden /> : <Copy size={16} aria-hidden />}{copied ? "Copied" : "Copy"}</span>
           </button>
         )}
         <button
@@ -98,7 +100,7 @@ function HandoffBody({ handoff: h }: { handoff: Handoff }) {
     <div className="mt-1 flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
         <span className="rounded-full border border-slate-600 bg-slate-800 px-2 py-0.5 font-medium text-slate-200">
-          {h.source === "claude" ? "✦ Drafted by Claude" : "Rule-based (AI unavailable)"}
+          {h.source === "claude" ? <span className="inline-flex items-center gap-1"><Sparkle size={14} weight="bold" aria-hidden /> Drafted by Claude</span> : "Rule-based (AI unavailable)"}
         </span>
         <span>
           {h.totals.alerts} alerts · {h.totals.escalations} escalated · {h.totals.open} not resolved ·{" "}

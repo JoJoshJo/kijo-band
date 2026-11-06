@@ -1,6 +1,19 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import {
+  ChatCircleText,
+  Drop,
+  Heartbeat,
+  Moon,
+  Pause,
+  PersonSimpleWalk,
+  Siren,
+  SmileySad,
+  Toilet,
+  Vibrate,
+  type Icon,
+} from "@phosphor-icons/react";
 import type { Alert, AlertPriority, AlertType, Nurse } from "@/lib/types";
 
 // IEC 60601-1-8 style: P1 red fast flash · P2 yellow slow flash · P3 light blue steady · OK green.
@@ -9,11 +22,11 @@ export const PRIORITY: Record<
   AlertPriority,
   { label: string; text: string; bg: string; border: string; stroke: string; flash: string }
 > = {
-  1: { label: "P1", text: "text-red-400", bg: "bg-red-500", border: "border-red-500", stroke: "#ef4444", flash: "kijo-flash-fast" },
-  2: { label: "P2", text: "text-yellow-300", bg: "bg-yellow-400", border: "border-yellow-400", stroke: "#facc15", flash: "kijo-flash-slow" },
-  3: { label: "P3", text: "text-sky-300", bg: "bg-sky-300", border: "border-sky-300", stroke: "#7dd3fc", flash: "" },
+  1: { label: "P1", text: "text-alarm", bg: "bg-alarm", border: "border-alarm", stroke: "#e5484d", flash: "kijo-flash-fast" },
+  2: { label: "P2", text: "text-warn", bg: "bg-warn", border: "border-warn", stroke: "#f5b83d", flash: "kijo-flash-slow" },
+  3: { label: "P3", text: "text-info", bg: "bg-info", border: "border-info", stroke: "#4cc3e6", flash: "" },
 };
-export const OK_STROKE = "#34d399";
+export const OK_STROKE = "#3dd68c";
 
 export const ALERT_LABEL: Record<AlertType, string> = {
   fall: "Fall",
@@ -28,17 +41,17 @@ export const ALERT_LABEL: Record<AlertType, string> = {
   up_at_night: "Resident is up — fall risk",
 };
 
-export const ALERT_ICON: Record<AlertType, string> = {
-  fall: "⬇️",
-  voice: "🎙️",
-  sos_shake: "📳",
-  need_pain: "😣",
-  need_bathroom: "🚻",
-  need_water: "💧",
-  need_help: "🙋",
-  vitals: "♥",
-  inactivity: "⏸️",
-  up_at_night: "🚶",
+export const ALERT_ICON: Record<AlertType, Icon> = {
+  fall: PersonSimpleWalk,
+  voice: ChatCircleText,
+  sos_shake: Vibrate,
+  need_pain: SmileySad,
+  need_bathroom: Toilet,
+  need_water: Drop,
+  need_help: Siren,
+  vitals: Heartbeat,
+  inactivity: Pause,
+  up_at_night: Moon,
 };
 
 export const ESCALATION_MS = 90_000;

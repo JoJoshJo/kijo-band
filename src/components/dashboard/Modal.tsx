@@ -23,7 +23,7 @@ export default function Modal({
     <div className="fixed inset-0 z-50 flex items-center justify-center" role="dialog" aria-modal="true" aria-label={title}>
       <button type="button" aria-label="Close" onClick={onClose} className="absolute inset-0 bg-black/70" />
       <div
-        className={`relative w-full rounded-2xl border border-slate-700 bg-[#0b1120] p-6 shadow-2xl ${
+        className={`relative w-full rounded-2xl border border-slate-700 bg-surface p-6 shadow-2xl ${
           wide ? "max-w-2xl" : "max-w-md"
         }`}
       >

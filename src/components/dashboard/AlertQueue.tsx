@@ -1,5 +1,7 @@
 "use client";
 
+import { CheckCircle } from "@phosphor-icons/react";
+
 import type { Alert, Nurse, Resident } from "@/lib/types";
 import AlertCard from "./AlertCard";
 import { sortAlerts } from "./util";
@@ -47,7 +49,7 @@ export default function AlertQueue({
                 className="flex h-14 w-14 items-center justify-center rounded-full border border-emerald-500/40 bg-emerald-500/10 text-2xl text-emerald-300"
                 aria-hidden
               >
-                ✓
+                <CheckCircle size={32} />
               </span>
               <p className="text-base font-semibold text-emerald-300">All quiet</p>
               <p className="text-sm text-slate-400">

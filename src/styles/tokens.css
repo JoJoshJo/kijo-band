@@ -1,0 +1,85 @@
+/*
+ * Kijo shared design tokens (dashboard + band). Imported once by src/app/globals.css.
+ *
+ * Color rules: red (alarm) and yellow (warn) are ONLY for alarms. Brand teal is for primary
+ * buttons only. Green (ok) means "resident OK". Everything else is neutral surface/ink.
+ * Type: Geist Sans for UI, Geist Mono with tabular figures for numbers, timers and HR.
+ * Scale 12/14/16/20/24/32 → text-xs/sm/base/xl/2xl/display. Weights 400/500/600.
+ * Spacing: 8-pt grid (Tailwind 2 = 8px). Radius: cards 12px (rounded-card), buttons 10px (rounded-btn), pills full.
+ */
+
+:root {
+  --kj-bg: #0b0f14;
+  --kj-surface: #121820;
+  --kj-surface-2: #18202a;
+  --kj-line: #1f2a36;
+  --kj-line-2: #243041;
+  --kj-ink: #e8eef5;
+  --kj-muted: #8a97a6;
+  --kj-brand: #2bb3a3;
+  --kj-ok: #3dd68c;
+  --kj-alarm: #e5484d;
+  --kj-warn: #f5b83d;
+  --kj-info: #4cc3e6;
+  --kj-ease: cubic-bezier(0.2, 0, 0, 1);
+}
+
+@theme inline {
+  --color-bg: var(--kj-bg);
+  --color-surface: var(--kj-surface);
+  --color-surface-2: var(--kj-surface-2);
+  --color-line: var(--kj-line);
+  --color-line-2: var(--kj-line-2);
+  --color-ink: var(--kj-ink);
+  --color-muted: var(--kj-muted);
+  --color-brand: var(--kj-brand);
+  --color-ok: var(--kj-ok);
+  --color-alarm: var(--kj-alarm);
+  --color-warn: var(--kj-warn);
+  --color-info: var(--kj-info);
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  --text-display: 2rem; /* 32 */
+  --text-display--line-height: 2.5rem;
+
+  --radius-card: 12px;
+  --radius-btn: 10px;
+
+  --default-transition-duration: 160ms;
+  --default-transition-timing-function: var(--kj-ease);
+}
+
+/* Numbers, timers, HR: mono with tabular figures so they don't jitter. */
+@utility num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Small-caps style label (room numbers, section titles). */
+@utility label-caps {
+  font-size: 0.75rem;
+  line-height: 1rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--kj-muted);
+}
+
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--kj-brand);
+    outline-offset: 2px;
+  }
+}
+
+/* Respect reduced motion: no transitions or decorative motion. Alarm flashes are handled per view. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

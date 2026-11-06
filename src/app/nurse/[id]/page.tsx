@@ -11,7 +11,7 @@ async function NurseRoute({ params, logoSrc }: { params: Promise<{ id: string }>
 
 export default function NursePage({ params }: PageProps<"/nurse/[id]">) {
   return (
-    <Suspense fallback={<div className="h-screen bg-[#070b14]" />}>
+    <Suspense fallback={<div className="h-screen bg-bg" />}>
       <NurseRoute params={params} logoSrc={findLogo()} />
     </Suspense>
   );

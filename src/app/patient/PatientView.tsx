@@ -66,7 +66,7 @@ export default function PatientView({ logoSrc }: { logoSrc: string | null }) {
   }, [toast]);
 
   return (
-    <div className="flex h-screen flex-col bg-[#070b14] text-slate-100">
+    <div className="flex h-screen flex-col bg-bg text-slate-100">
       <Header
         logoSrc={logoSrc}
         view="patient"

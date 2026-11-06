@@ -1,5 +1,7 @@
 "use client";
 
+import { Check, SpeakerHigh, SpeakerSlash } from "@phosphor-icons/react";
+
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -79,7 +81,7 @@ export default function NurseView({ nurseId, logoSrc }: { nurseId: string; logoS
 
   if (data && (!nurse || nurse.role === "Charge")) {
     return (
-      <div className="flex h-screen flex-col bg-[#070b14] text-slate-100">
+      <div className="flex h-screen flex-col bg-bg text-slate-100">
         <Header logoSrc={logoSrc} view="nurse" live={live} />
         <main className="flex flex-1 flex-col items-center justify-center gap-4">
           <p className="text-lg text-slate-300">
@@ -101,7 +103,7 @@ export default function NurseView({ nurseId, logoSrc }: { nurseId: string; logoS
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#070b14] text-slate-100 lg:h-screen">
+    <div className="flex min-h-screen flex-col bg-bg text-slate-100 lg:h-screen">
       <Header
         logoSrc={logoSrc}
         view="nurse"
@@ -131,7 +133,10 @@ export default function NurseView({ nurseId, logoSrc }: { nurseId: string; logoS
               sound.muted ? "border-slate-700 text-slate-500" : "border-slate-600 text-slate-200"
             } hover:bg-slate-800`}
           >
-            {sound.muted ? "🔇 Muted" : sound.ready ? "🔊 Sound on" : "🔈 Click to enable sound"}
+            <span className="inline-flex items-center gap-1.5">
+                {sound.muted ? <SpeakerSlash size={18} aria-hidden /> : <SpeakerHigh size={18} aria-hidden />}
+                {sound.muted ? "Muted" : sound.ready ? "Sound on" : "Click to enable sound"}
+              </span>
           </button>
         }
       />
@@ -228,7 +233,7 @@ function TeamEmergencies({
             </span>
             <span className="ml-auto">
               {assisting ? (
-                <span className="rounded bg-white/20 px-3 py-0.5 text-xs font-semibold">Assisting ✓</span>
+                <span className="inline-flex items-center gap-1 rounded bg-white/20 px-3 py-0.5 text-xs font-semibold">Assisting <Check size={14} weight="bold" aria-hidden /></span>
               ) : (
                 <button
                   type="button"
