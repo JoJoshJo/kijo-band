@@ -32,6 +32,7 @@ export interface BandStrings {
   imOk: string;
   /** {s} = seconds left */
   callingIn: string;
+  listening: string;
 }
 
 export const STRINGS: Record<Language, BandStrings> = {
@@ -61,6 +62,7 @@ export const STRINGS: Record<Language, BandStrings> = {
     fallDetected: "A fall was detected.",
     imOk: "I'm OK",
     callingIn: "Calling for help in {s}s",
+    listening: "Listening…",
   },
   fr: {
     loading: "Chargement…",
@@ -88,6 +90,7 @@ export const STRINGS: Record<Language, BandStrings> = {
     fallDetected: "Une chute a été détectée.",
     imOk: "Ça va",
     callingIn: "Appel à l'aide dans {s} s",
+    listening: "À l'écoute…",
   },
   es: {
     loading: "Cargando…",
@@ -115,6 +118,7 @@ export const STRINGS: Record<Language, BandStrings> = {
     fallDetected: "Se detectó una caída.",
     imOk: "Estoy bien",
     callingIn: "Pidiendo ayuda en {s} s",
+    listening: "Escuchando…",
   },
 };
 
