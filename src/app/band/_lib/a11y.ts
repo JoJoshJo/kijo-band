@@ -48,3 +48,6 @@ export function useLargeText(): [boolean, (on: boolean) => void] {
 /** Visible keyboard / switch-access focus ring for every band control (4px brand teal, offset from the button). */
 export const FOCUS =
   "focus-visible:outline-solid focus-visible:outline-4 focus-visible:outline-offset-4 focus-visible:outline-brand";
+
+/** One icon scale for the band (Phosphor fill): inline 24 · top bar 30 · headings 32 · quick cards 36. */
+export const ICON = { inline: 24, bar: 30, heading: 32, card: 36 } as const;

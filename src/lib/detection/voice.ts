@@ -297,17 +297,17 @@ const RULES: Rule[] = [
 export const PATIENT_MESSAGES: Record<AlertPriority, Record<Language, string>> = {
   1: {
     en: "Help is coming right now. Stay still.",
-    fr: "Quelqu'un arrive tout de suite. Ne bougez pas.",
-    es: "La ayuda viene ahora mismo. Quédese quieto.",
+    fr: "Quelqu’un arrive tout de suite. Ne bougez pas.",
+    es: "La ayuda viene ahora mismo. No se mueva.",
   },
   2: {
     en: "A nurse is coming to help you.",
-    fr: "Quelqu'un arrive pour vous aider.",
+    fr: "Quelqu’un arrive pour vous aider.",
     es: "Alguien viene a ayudarle.",
   },
   3: {
     en: "Got it. Someone will be with you soon.",
-    fr: "C'est noté. Quelqu'un arrive bientôt.",
+    fr: "C’est noté. Quelqu’un arrive bientôt.",
     es: "Entendido. Alguien vendrá pronto.",
   },
 };

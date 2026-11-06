@@ -49,7 +49,7 @@ test("pain beats comfort, comfort beats generic help", () => {
 
 test("patient message is in the resident's language; summary stays English and short", () => {
   const r = keywordTriage("J'ai mal", "fr");
-  assert.match(r.patientMessage, /Quelqu'un/);
+  assert.match(r.patientMessage, /Quelqu’un/);
   assert.ok(r.summary.split(/\s+/).length <= 15);
   assert.match(r.summary, /^Reports pain/);
 });

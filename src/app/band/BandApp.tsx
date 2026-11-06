@@ -14,11 +14,10 @@ import {
   residentSaysOk,
 } from "@/lib/detection/alertRules";
 import { LANGUAGES, LANGUAGE_NAMES, STRINGS, fill, nurseDisplayName, type BandStrings } from "./_lib/i18n";
-import { FOCUS, useLargeText } from "./_lib/a11y";
+import { FOCUS, ICON, useLargeText } from "./_lib/a11y";
 import { chime, useSpeak, vibrateSent } from "./_lib/useSpeak";
 import {
   Drop,
-  GearSix,
   Heartbeat,
   Microphone,
   SmileySad,
@@ -365,7 +364,7 @@ function Band({ residentId, embedded }: { residentId: string; embedded: boolean 
     const name = n ? nurseDisplayName(n.name, lang) : "";
     const s = STRINGS[lang];
     const acked = a.status === "acknowledged" && (prev.id !== a.id || prev.status !== "acknowledged");
-    if (acked && name) speak(`${fill(s.onTheWay, { nurse: name })}.`);
+    if (acked) speak(`${name ? fill(s.onTheWay, { nurse: name }) : s.nurseOnTheWay}.`);
     else if (prev.id !== a.id) speak(name ? `${s.helpComing}. ${fill(s.spokenCalled, { nurse: name })}` : `${s.helpComing}.`);
   }, [data, started, residentId, lang, speak]);
 
@@ -507,7 +506,7 @@ function Band({ residentId, embedded }: { residentId: string; embedded: boolean 
           <div className="flex shrink-0 gap-2">
             <IconButton
               icon={Translate}
-              label={`${t.language}: ${LANGUAGE_NAMES[lang]}. ${t.largeText}`}
+              label={`${t.settings}: ${t.language} (${LANGUAGE_NAMES[lang]}), ${t.largeText}`}
               onClick={() => setSettingsOpen(true)}
             />
             <IconButton icon={Heartbeat} label={t.checkPulse} onClick={() => setPulseOpen(true)} />
@@ -700,7 +699,7 @@ function VoiceStatus({
 }
 
 function MicGlyph() {
-  return <Microphone size={22} weight="fill" aria-hidden />;
+  return <Microphone size={ICON.inline} weight="fill" aria-hidden />;
 }
 
 /** Square-ish icon button in the top bar (56px target, 30px Phosphor fill icon). */
@@ -712,7 +711,7 @@ function IconButton({ icon: I, label, onClick }: { icon: Icon; label: string; on
       aria-haspopup="dialog"
       className={`flex h-14 w-14 items-center justify-center rounded-btn border border-line bg-surface-2 text-ink active:scale-95 ${FOCUS}`}
     >
-      <I size={30} weight="fill" aria-hidden />
+      <I size={ICON.bar} weight="fill" aria-hidden />
     </button>
   );
 }
@@ -746,7 +745,7 @@ function NeedButton({
       disabled={disabled}
       className={`flex min-h-[84px] flex-col items-center justify-center gap-1.5 rounded-[18px] border px-2 py-3 text-2xl font-semibold text-ink active:scale-95 disabled:opacity-60 ${c.card} ${FOCUS}`}
     >
-      <I size={36} weight="fill" className={c.icon} aria-hidden />
+      <I size={ICON.card} weight="fill" className={c.icon} aria-hidden />
       {label}
     </button>
   );
@@ -782,14 +781,12 @@ function LargeTextSwitch({ t, on, onChange }: { t: BandStrings; on: boolean; onC
       onClick={() => onChange(!on)}
       className={`flex min-h-16 w-full max-w-sm items-center justify-between gap-4 rounded-btn bg-surface-2 px-5 text-2xl font-semibold ${FOCUS}`}
     >
-      <span>
-        <span className="text-[1.25em]" aria-hidden>
-          A
+      <span className="flex items-center gap-3 text-left">
+        <span className="shrink-0 leading-none" aria-hidden>
+          <span className="text-[1.25em]">A</span>
+          <span className="text-[0.85em]">A</span>
         </span>
-        <span className="text-[0.85em]" aria-hidden>
-          A
-        </span>{" "}
-        {t.largeText}
+        <span>{t.largeText}</span>
       </span>
       <span
         aria-hidden
@@ -863,10 +860,10 @@ function SettingsSheet({
   onClose: () => void;
 }) {
   return (
-    <Sheet label={t.language} onClose={onClose}>
-      <h2 className="flex items-center justify-center gap-2 text-2xl font-semibold">
-        <GearSix size={28} weight="fill" className="text-muted" aria-hidden />
-        {t.language}
+    <Sheet label={t.settings} onClose={onClose}>
+      <h2 className="flex items-center justify-center gap-3 text-2xl font-semibold">
+        <Translate size={ICON.heading} weight="fill" className="text-muted" aria-hidden />
+        {t.settings}
       </h2>
       <LanguageSwitch t={t} lang={lang} onChange={onLang} />
       <div className="flex justify-center">
@@ -897,10 +894,9 @@ function AlertBanner({
   onOpen: () => void;
 }) {
   const nurseName = nurse ? nurseDisplayName(nurse.name, lang) : "";
+  // Shared wording: "Help is coming" → "Nurse Ana is on the way" (or "Your nurse is on the way").
   const text =
-    alert.status === "acknowledged" && nurseName
-      ? fill(t.onTheWay, { nurse: nurseName })
-      : [t.helpComing, nurseName].filter(Boolean).join(" · ");
+    alert.status !== "acknowledged" ? t.helpComing : nurseName ? fill(t.onTheWay, { nurse: nurseName }) : t.nurseOnTheWay;
   return (
     <button
       onClick={onOpen}
@@ -913,7 +909,7 @@ function AlertBanner({
   );
 }
 
-/** Small bottom sheet from the banner: reassurance + "I'm OK – cancel" (P1: flagged, never resolved). */
+/** Small bottom sheet from the banner: reassurance + "I'm OK" (P1: flagged, never resolved). */
 function HelpSheet({
   t,
   alert,
@@ -954,7 +950,7 @@ function HelpSheet({
                 disabled={busy}
                 className={`min-h-16 rounded-btn bg-brand text-2xl font-bold text-bg active:scale-95 disabled:opacity-60 ${FOCUS}`}
               >
-                {t.yes}
+                {t.yesCancel}
               </button>
               <button
                 onClick={() => setConfirming(false)}

@@ -75,9 +75,25 @@ test("nothing the band says out loud is an emergency phrase (it may be heard whi
   const { STRINGS, LANGUAGES } = await import("@/app/band/_lib/i18n");
   for (const l of LANGUAGES) {
     const s = STRINGS[l];
-    for (const line of [s.alreadySent, s.helpComing, s.onTheWay, s.areYouOk, s.fallDetected, s.spokenCalled, s.wakeYes]) {
+    for (const line of [s.alreadySent, s.helpComing, s.onTheWay, s.nurseOnTheWay, s.areYouOk, s.fallDetected, s.spokenCalled, s.wakeYes, s.stayCalm, s.nurseWillCheck]) {
       const d = decideUtterance(line.replace("{nurse}", "Amara"), l);
       assert.ok(!(d.action === "send" && d.kind === "emergency"), `${l}: "${line}"`);
+    }
+  }
+});
+
+test("band copy: no emoji, no dashes, sentence case, polite FR/ES", async () => {
+  const { STRINGS, LANGUAGES } = await import("@/app/band/_lib/i18n");
+  const { PATIENT_MESSAGES } = await import("./voice");
+  for (const l of LANGUAGES) {
+    const lines = [...Object.values(STRINGS[l]), ...[1, 2, 3].map((p) => PATIENT_MESSAGES[p as 1 | 2 | 3][l])];
+    for (const line of lines) {
+      assert.ok(!/\p{Extended_Pictographic}/u.test(line), `${l} emoji: ${line}`);
+      assert.ok(!/[—–]/.test(line), `${l} dash: ${line}`);
+      assert.ok(!/\b[A-Z]{3,}\b/.test(line.replace(/\bOK\b/g, "")), `${l} all caps: ${line}`);
+      const word = (w: string) => new RegExp(`(?<!\\p{L})(${w})(?!\\p{L})`, "iu");
+      if (l === "fr") assert.ok(!word("tu|te|ton|ta|tes").test(line) && !line.includes("'"), `fr: ${line}`);
+      if (l === "es") assert.ok(!word("tú|tienes|puedes|quédate|toca").test(line), `es: ${line}`);
     }
   }
 });
