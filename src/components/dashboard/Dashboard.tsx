@@ -12,6 +12,7 @@ import QrModal from "./QrModal";
 import ResetModal from "./ResetModal";
 import { useAlarmSounds } from "./useAlarmSounds";
 import ResidentDrawer from "./ResidentDrawer";
+import { AutopilotPill, useAutopilot } from "./useAutopilot";
 import { useDemoShortcuts } from "./useDemoShortcuts";
 import { useEscalation } from "./useEscalation";
 import { useHeartRateDrift } from "./useHeartRateDrift";
@@ -50,6 +51,7 @@ export default function Dashboard({ logoSrc }: { logoSrc: string | null }) {
   const alerts = data?.alerts ?? [];
   useEscalation(alerts, now, refresh);
   useDemoShortcuts(residents, alerts);
+  const autopilot = useAutopilot(alerts); // hidden: Shift+A start, Esc stop
   const sound = useAlarmSounds(data?.alerts);
   const heartRateOf = useCallback((r: Resident) => displayHr(r, clientNow), [displayHr, clientNow]);
 
@@ -159,6 +161,8 @@ export default function Dashboard({ logoSrc }: { logoSrc: string | null }) {
           onClose={closeDrawer}
         />
       )}
+
+      <AutopilotPill status={autopilot.status} />
     </div>
   );
 }
