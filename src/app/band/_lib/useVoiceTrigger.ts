@@ -138,8 +138,9 @@ function classify(reason: string): VoiceProblem {
  * iPhone Safari uses webkitSpeechRecognition.
  *
  * - Background (while `enabled` and not `paused`): continuous. A FINAL sentence goes to onTrigger when
- *   it has an emergency word ("help", "au secours", "me caí"…), or what follows the wake word "Kijo"
- *   ("Kijo, I need water" → "I need water"). "Kijo" alone → onWake (chime + "Yes?") and the NEXT
+ *   it has an emergency phrase ("I fell", "je suis tombé", "me caí"…, any length), a base word in a
+ *   short utterance ("water", "toilet please", "j'ai mal" — ≤ 6 words), or what follows the wake word
+ *   "Kijo" ("Kijo, I need water" → "I need water"). "Kijo" alone → onWake (chime + "Yes?") and the NEXT
  *   utterance within 8 s is taken (`capturing`). Everything else is ignored. Starts by itself where the platform allows (Chrome, Android, desktop) and restarts after
  *   every `end`. iOS needs a tap to start: call `arm()` from inside the tap (Start Kijo, a language
  *   change, "Tap to resume listening"). If an automatic restart is refused, `needsTap` turns true.
@@ -230,7 +231,10 @@ export function useVoiceTrigger({
       const intent = backgroundIntent(sentence, l);
       if (!intent) return;
       if (intent.kind === "emergency") {
-        vlog("emergency words");
+        vlog("emergency phrase");
+        cb.current.onTrigger(intent.text);
+      } else if (intent.kind === "base") {
+        vlog(`base word (${intent.need}), short utterance`);
         cb.current.onTrigger(intent.text);
       } else if (intent.command) {
         vlog("wake word + request");

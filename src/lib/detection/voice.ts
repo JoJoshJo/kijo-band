@@ -59,25 +59,55 @@ export function containsTrigger(text: string, lang: Language): boolean {
   return phrases.some((p) => hasPhrase(norm, p));
 }
 
-// ── Background listening: "Kijo" wake word + emergency words ──
-// Residents who can't move or tap say "Kijo, …" (or "Kijo" … "Yes?" … then the request). Emergency
-// words work WITHOUT the wake word. Everything else said in the room is ignored.
+// ── Background listening: "Kijo" wake word, base words, emergency phrases ──
+// - Emergency phrases (a fall, can't breathe, chest pain) work WITHOUT the wake word, at any length.
+// - Base words (help / water / toilet / pain) work WITHOUT the wake word only in a SHORT utterance
+//   (≤ BASE_MAX_WORDS words: "water", "toilet please", "I need help"); longer sentences that merely
+//   contain them (TV, conversation) are ignored unless they start with "Kijo".
+// - "Kijo, …" (or "Kijo" … "Yes?" … then the request) works for anything.
+// Everything else said in the room is ignored. English is accepted for every resident.
 
-/** Emergency phrases (normalized) — trigger without the wake word. English is accepted for everyone. */
+/** Emergency phrases (normalized) — trigger without the wake word, whatever the sentence length. */
 export const EMERGENCY_PHRASES: Record<Language, string[]> = {
   en: [
-    "help", "help me", "emergency", "i fell", "ive fallen", "i have fallen", "i fell down",
+    "i fell", "ive fallen", "i have fallen", "i fell down",
     "cant breathe", "cannot breathe", "i cant breathe", "chest pain", "heart attack",
   ],
   fr: [
-    "au secours", "a l aide", "aidez moi", "je suis tombe", "je suis tombee", "urgence",
+    "je suis tombe", "je suis tombee",
     "je ne peux pas respirer", "j arrive pas a respirer", "je n arrive pas a respirer", "je respire pas",
     "douleur a la poitrine", "mal a la poitrine", "crise cardiaque",
   ],
   es: [
-    "ayuda", "ayudeme", "ayudenme", "ayudame", "socorro", "auxilio", "me cai", "me he caido", "emergencia",
+    "me cai", "me he caido",
     "no puedo respirar", "dolor de pecho", "dolor en el pecho", "infarto",
   ],
+};
+
+/** A base word counts without the wake word only in an utterance of at most this many words. */
+export const BASE_MAX_WORDS = 6;
+
+/** Base words (normalized) by need — trigger without the wake word in a short utterance. */
+export const BASE_PHRASES: Record<Language, Record<"help" | "water" | "toilet" | "pain", string[]>> = {
+  en: {
+    help: ["help", "help me", "i need help", "emergency", "nurse"],
+    water: ["water", "thirsty"],
+    toilet: ["toilet", "bathroom", "restroom", "loo"],
+    pain: ["pain", "it hurts", "hurts", "im in pain"],
+  },
+  fr: {
+    help: ["aide", "a l aide", "aidez moi", "aidez", "au secours", "secours", "urgence", "infirmiere", "infirmier"],
+    water: ["eau", "de l eau", "j ai soif", "soif"],
+    toilet: ["toilettes", "les toilettes", "toilette", "pipi", "wc"],
+    // not "mal" alone: "pas mal" means "not bad"
+    pain: ["j ai mal", "douleur", "ca fait mal"],
+  },
+  es: {
+    help: ["ayuda", "ayudeme", "ayudenme", "ayudame", "socorro", "auxilio", "emergencia", "enfermera", "enfermero"],
+    water: ["agua", "tengo sed", "sed"],
+    toilet: ["bano", "el bano"],
+    pain: ["me duele", "dolor", "duele"],
+  },
 };
 
 /**
@@ -88,6 +118,23 @@ export const WAKE_VARIANTS: string[][] = [
   ["kijo"], ["kiyo"], ["kijou"], ["kidjo"], ["quijo"], ["keejo"], ["keyjo"], ["kijoe"], ["kiyoh"],
   ["key", "jo"], ["ki", "jo"], ["kee", "jo"], ["qui", "jo"], ["key", "joe"], ["ki", "joe"], ["kee", "joe"],
 ];
+
+/** Spoken words in the utterance (as said: "l’eau" is one word, "Aidez-moi" is one word). */
+export function wordCount(text: string): number {
+  return text.split(/\s+/).filter((w) => /[\p{L}\p{N}]/u.test(w)).length;
+}
+
+/** Which need a short utterance asks for, or null (also null when it is longer than BASE_MAX_WORDS). */
+export function baseNeed(text: string, lang: Language): keyof (typeof BASE_PHRASES)["en"] | null {
+  if (wordCount(text) > BASE_MAX_WORDS) return null;
+  const norm = normalize(text);
+  if (!norm) return null;
+  const sets = lang === "en" ? [BASE_PHRASES.en] : [BASE_PHRASES[lang], BASE_PHRASES.en];
+  for (const need of ["help", "pain", "toilet", "water"] as const) {
+    if (sets.some((set) => set[need].some((p) => hasPhrase(norm, p)))) return need;
+  }
+  return null;
+}
 
 export function isEmergency(text: string, lang: Language): boolean {
   const norm = normalize(text);
@@ -131,17 +178,26 @@ export function findWakeWord(text: string): { command: string } | null {
 
 export type BackgroundIntent =
   | { kind: "wake"; command: string } // "Kijo, …" (command "" → ask "Yes?" and take the next utterance)
-  | { kind: "emergency"; text: string }; // emergency words, no wake word needed
+  | { kind: "emergency"; text: string } // fall / breathing / chest phrases, any length, no wake word
+  | { kind: "base"; text: string; need: "help" | "water" | "toilet" | "pain" }; // short base-word request
 
-/** What background listening should do with one final sentence; null = ordinary talk, ignore it. */
+/**
+ * What background listening should do with one final sentence; null = ordinary talk, ignore it.
+ * Everything that triggers is sent to /api/triage as before (Claude sets priority + summary).
+ */
 export function backgroundIntent(text: string, lang: Language): BackgroundIntent | null {
   const wake = findWakeWord(text);
   if (wake) {
-    // "Kijo" alone, but an emergency earlier in the sentence ("I fell, Kijo") → send the whole sentence.
-    if (!wake.command && isEmergency(text, lang)) return { kind: "emergency", text };
-    return { kind: "wake", command: wake.command };
+    if (wake.command) return { kind: "wake", command: wake.command };
+    // "Kijo" alone, but a request earlier in the sentence ("I fell, Kijo", "water, Kijo") → send it all.
+    if (isEmergency(text, lang)) return { kind: "emergency", text };
+    const need = baseNeed(text, lang);
+    if (need) return { kind: "base", text, need };
+    return { kind: "wake", command: "" };
   }
   if (isEmergency(text, lang)) return { kind: "emergency", text };
+  const need = baseNeed(text, lang);
+  if (need) return { kind: "base", text, need };
   return null;
 }
 

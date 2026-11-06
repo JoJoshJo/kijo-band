@@ -117,7 +117,7 @@ test("FR / ES keyword triage (Claude unavailable) classifies elided and imperati
 });
 
 // ── "Kijo" wake word + emergency words (background listening) ──
-import { backgroundIntent, findWakeWord, isEmergency } from "./voice";
+import { backgroundIntent, findWakeWord, isEmergency, wordCount } from "./voice";
 
 test("wake word: command is what follows, original wording kept (EN/FR/ES)", () => {
   assert.deepEqual(findWakeWord("Kijo, I need some water"), { command: "I need some water" });
@@ -143,24 +143,71 @@ test("wake word: no false triggers on close-sounding words", () => {
   }
 });
 
-test("emergency words trigger without the wake word, in every language", () => {
+test("emergency phrases trigger without the wake word, at any length", () => {
   for (const [s, l] of [
-    ["Help!", "en"], ["I fell", "en"], ["I can't breathe", "en"], ["Au secours", "fr"], ["À l’aide", "fr"],
-    ["Aidez-moi", "fr"], ["Je suis tombée", "fr"], ["Je n’arrive pas à respirer", "fr"], ["¡Ayuda!", "es"],
-    ["Me caí", "es"], ["No puedo respirar", "es"], ["help", "fr"], ["Socorro", "es"],
+    ["I fell", "en"], ["I can't breathe", "en"], ["Je suis tombée", "fr"], ["Je n’arrive pas à respirer", "fr"],
+    ["Me caí", "es"], ["No puedo respirar", "es"],
+    ["Oh no I think I fell in the bathroom and I can't get up", "en"],
+    ["Je crois que je suis tombée dans la salle de bain ce matin", "fr"],
+    ["Ay Dios mío me caí al lado de la cama otra vez", "es"],
   ] as const) {
     assert.deepEqual(backgroundIntent(s, l), { kind: "emergency", text: s }, s);
   }
 });
 
-test("everyday talk without Kijo or emergency words is ignored (even comfort words)", () => {
+test("short base words trigger without the wake word (EN/FR/ES, every need)", () => {
+  for (const [s, l, need] of [
+    ["Help!", "en", "help"], ["Help me", "en", "help"], ["I need help", "en", "help"], ["Nurse!", "en", "help"],
+    ["Water", "en", "water"], ["Some water please", "en", "water"], ["I need water", "en", "water"],
+    ["Toilet", "en", "toilet"], ["Toilet please", "en", "toilet"], ["I need the bathroom", "en", "toilet"],
+    ["Restroom", "en", "toilet"], ["It hurts", "en", "pain"], ["I'm in pain", "en", "pain"],
+    ["Aide", "fr", "help"], ["À l’aide !", "fr", "help"], ["Aidez-moi", "fr", "help"], ["Au secours", "fr", "help"],
+    ["De l’eau", "fr", "water"], ["De l'eau s'il vous plaît", "fr", "water"], ["J’ai soif", "fr", "water"],
+    ["Les toilettes", "fr", "toilet"], ["Pipi", "fr", "toilet"], ["J’ai mal", "fr", "pain"], ["Douleur", "fr", "pain"],
+    ["¡Ayuda!", "es", "help"], ["Ayúdeme", "es", "help"], ["Socorro", "es", "help"],
+    ["Agua", "es", "water"], ["Tengo sed", "es", "water"], ["El baño", "es", "toilet"], ["Baño por favor", "es", "toilet"],
+    ["Me duele", "es", "pain"], ["Dolor", "es", "pain"], ["water", "fr", "water"], ["help", "es", "help"],
+  ] as const) {
+    assert.deepEqual(backgroundIntent(s, l), { kind: "base", text: s, need }, s);
+  }
+});
+
+test("base words in longer chatter (> 6 words) are ignored without Kijo", () => {
   for (const [s, l] of [
-    ["Can I get some water", "en"], ["What's on TV tonight", "en"], ["The toilet is down the hall", "en"],
-    ["Bonjour, ça va bien", "fr"], ["J’ai soif", "fr"], ["Il fait froid", "fr"],
-    ["Buenos días", "es"], ["Quiero agua", "es"], ["¿Qué hora es?", "es"],
+    ["Can you help me with the TV remote please", "en"], ["The water in this glass is too cold today", "en"],
+    ["My grandson said the bathroom upstairs is being painted", "en"], ["He has back pain since he started that new job", "en"],
+    ["Il faut que je pense à boire de l’eau demain", "fr"], ["Ma fille m’a dit que les toilettes sont en travaux", "fr"],
+    ["Mi hijo necesita ayuda con los deberes de la escuela", "es"], ["El agua de la piscina estaba muy fría ayer", "es"],
   ] as const) {
     assert.equal(backgroundIntent(s, l), null, s);
   }
+});
+
+test("everyday talk without Kijo, base words or emergency phrases is ignored", () => {
+  for (const [s, l] of [
+    ["What's on TV tonight", "en"], ["Good morning", "en"], ["Bonjour, ça va bien", "fr"], ["Pas mal, merci", "fr"],
+    ["Il fait froid", "fr"], ["Buenos días", "es"], ["¿Qué hora es?", "es"], ["Gracias", "es"],
+  ] as const) {
+    assert.equal(backgroundIntent(s, l), null, s);
+  }
+});
+
+test("Kijo still works for long requests and anything at all", () => {
+  assert.deepEqual(
+    backgroundIntent("Kijo, can you ask someone to bring me some water and close the window", "en"),
+    { kind: "wake", command: "can you ask someone to bring me some water and close the window" },
+  );
+  assert.deepEqual(
+    backgroundIntent("Kijo je voudrais qu’on ferme la fenêtre de ma chambre s’il vous plaît", "fr"),
+    { kind: "wake", command: "je voudrais qu’on ferme la fenêtre de ma chambre s’il vous plaît" },
+  );
+  assert.deepEqual(backgroundIntent("water, Kijo", "en"), { kind: "base", text: "water, Kijo", need: "water" });
+});
+
+test("word count follows spoken words (elisions and hyphens stay one word)", () => {
+  assert.equal(wordCount("De l'eau s'il vous plaît"), 5);
+  assert.equal(wordCount("Aidez-moi !"), 1);
+  assert.equal(wordCount("  water   water water "), 3);
 });
 
 test("Kijo + request → wake command; Kijo alone → ask; emergency + Kijo alone → emergency", () => {
@@ -170,5 +217,5 @@ test("Kijo + request → wake command; Kijo alone → ask; emergency + Kijo alon
   assert.deepEqual(backgroundIntent("Kijo", "fr"), { kind: "wake", command: "" });
   assert.deepEqual(backgroundIntent("Kijo help, I fell", "en"), { kind: "wake", command: "help, I fell" });
   assert.deepEqual(backgroundIntent("I fell, Kijo", "en"), { kind: "emergency", text: "I fell, Kijo" });
-  assert.ok(isEmergency("help", "es"), "English emergency words work for everyone");
+  assert.ok(isEmergency("I fell", "es"), "English emergency phrases work for everyone");
 });
