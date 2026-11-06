@@ -9,6 +9,7 @@ import { NurseBadge, NursePod } from "./NursePod";
 import PresenterPanel from "./PresenterPanel";
 import QrModal from "./QrModal";
 import ResetModal from "./ResetModal";
+import { useAlarmSounds } from "./useAlarmSounds";
 import ResidentDrawer from "./ResidentDrawer";
 import { useEscalation } from "./useEscalation";
 import { useHeartRateDrift } from "./useHeartRateDrift";
@@ -57,6 +58,7 @@ export default function Dashboard({ logoSrc }: { logoSrc: string | null }) {
   const nurses = data?.nurses ?? [];
   const alerts = data?.alerts ?? [];
   useEscalation(alerts, now, refresh);
+  const sound = useAlarmSounds(data?.alerts);
   const heartRateOf = useCallback((r: Resident) => displayHr(r, clientNow), [displayHr, clientNow]);
 
   const selected = selectedId ? residents.find((r) => r.id === selectedId) : undefined;
@@ -73,6 +75,16 @@ export default function Dashboard({ logoSrc }: { logoSrc: string | null }) {
         live={error ? "offline" : data ? "live" : "connecting"}
         actions={
           <>
+            <button
+              type="button"
+              onClick={sound.toggleMute}
+              title={sound.ready ? "Toggle alarm sounds" : "Browsers need one click before sound can play"}
+              className={`rounded border px-3 py-1 text-sm ${
+                sound.muted ? "border-slate-700 text-slate-500" : "border-slate-600 text-slate-200"
+              } hover:bg-slate-800`}
+            >
+              {sound.muted ? "🔇 Muted" : sound.ready ? "🔊 Sound on" : "🔈 Click to enable sound"}
+            </button>
             <button
               type="button"
               onClick={() => setModal("qr")}
