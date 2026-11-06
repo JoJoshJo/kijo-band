@@ -21,8 +21,7 @@ function allow(residentId: string, now: number): boolean {
 
 // POST /api/heartbeat { residentId, heartRate, moved?, motionState? } → 204
 // Updates ONLY residents.heart_rate, and residents.last_motion_at when the band saw movement
-// (moved: true, or motionState "moving"). motionState is validated but not stored yet: residents has no
-// motion_state column (Session A owns the schema).
+// (moved: true, or motionState "moving"), and residents.motion_state when the band sends one.
 export async function POST(request: Request) {
   const b = await readJson(request);
   if (b === INVALID_JSON) return Response.json({ error: "Invalid JSON" }, { status: 400 });
@@ -48,7 +47,8 @@ export async function POST(request: Request) {
     const rows = await sql`
       UPDATE residents
       SET heart_rate = ${b.heartRate},
-          last_motion_at = CASE WHEN ${moved}::boolean THEN ${now}::bigint ELSE last_motion_at END
+          last_motion_at = CASE WHEN ${moved}::boolean THEN ${now}::bigint ELSE last_motion_at END,
+          motion_state = COALESCE(${(b.motionState as string | undefined) ?? null}::text, motion_state)
       WHERE id = ${b.residentId}
       RETURNING id`;
     if (rows.length === 0) return Response.json({ error: "Resident not found" }, { status: 404 });

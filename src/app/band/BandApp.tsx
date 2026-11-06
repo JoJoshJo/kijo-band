@@ -18,6 +18,7 @@ import { useMotionDetection } from "./_lib/useMotionDetection";
 import { useVoiceTrigger } from "./_lib/useVoiceTrigger";
 import PulseCheck from "./PulseCheck";
 import TalkButton from "./TalkButton";
+import type { ActivityEvent } from "@/lib/detection/activity";
 import { promptInstall, useBandPwa, useInstallKind, useStoredResidentId } from "./_lib/pwa";
 
 const POLL_MS = 1000;
@@ -230,6 +231,14 @@ function Band({ residentId, embedded }: { residentId: string; embedded: boolean 
   // ── Real motion detection (phone only; the embedded frame uses the simulate buttons) ──
   const fallPendingRef = useRef(false);
   const startFallRef = useRef<(source: AlertSource) => void>(() => {});
+  // Inactivity (P2) and "up at night" (P3) from the on-device activity monitor; state goes with the heartbeat.
+  const onActivity = useCallback(
+    (e: ActivityEvent) => {
+      if (e.type === "inactivity") void sendAlert("inactivity", "detector");
+      else if (e.type === "up_at_night") void sendAlert("up_at_night", "detector");
+    },
+    [sendAlert],
+  );
   const motion = useMotionDetection(started && !embedded, (e) => {
     if (fallPendingRef.current) return; // already asking "Are you OK?"
     if (e.type === "fall") {
@@ -238,7 +247,7 @@ function Band({ residentId, embedded }: { residentId: string; embedded: boolean 
       lastSentRef.current = 0; // a deliberate SOS shake must not be swallowed by the client-side limit
       void sendAlert("sos_shake", "detector");
     }
-  });
+  }, onActivity);
 
   // ── Heartbeat: write HR (and whether the resident moved) to the DB every 2s ──
   useEffect(() => {
