@@ -89,13 +89,27 @@ function onDeviceFailed(rec: SpeechRecognitionLike, tag: string, error: string) 
   return false;
 }
 
+/** Dev only: which language (and on-device or not) each recognizer starts with. Never the transcript. */
+function logStart(mode: "background" | "talk", rec: SpeechRecognitionLike) {
+  if (process.env.NODE_ENV !== "production") {
+    console.debug(`[voice] ${mode} recognizer start lang=${rec.lang}${rec.processLocally ? " (on-device)" : ""}`);
+  }
+}
+
+const clean = (t: string) => t.replace(/\s+/g, " ").trim().slice(0, MAX_TRANSCRIPT_CHARS);
+
 /**
- * Speech recognition in the resident's language. Audio never leaves the browser's recognizer;
- * only a single sentence (≤ 300 chars) is passed on.
+ * Speech recognition in the resident's language: every recognizer is created with `lang` = the band's
+ * CURRENT language (en-US / fr-FR / es-ES) and recreated when it changes; restarts reuse that object,
+ * so they keep it. Chrome/Edge are asked to recognise on the device where the model is installed
+ * (processLocally); iPhone Safari uses webkitSpeechRecognition with the same lang. Audio never leaves
+ * the browser's recognizer; only a single sentence (≤ 300 chars) is passed on.
  * - Background (when `enabled`): continuous; a FINAL sentence with a trigger word → onTrigger.
  *   Auto-restarts on `end`.
  * - Tap and talk (`talk()`): pauses the background recognizer, takes ONE sentence (no trigger word
  *   needed) → onTalk, then background resumes. Works even when background listening is off.
+ * Engines that end without marking the last result final (seen on iOS Safari) still count: the
+ * latest interim sentence is used when the recognizer ends.
  * `listening` is true while the background recognizer is listening; `talking` during tap-and-talk.
  */
 export function useVoiceTrigger({
@@ -142,16 +156,21 @@ export function useVoiceTrigger({
     preferOnDevice(rec, tag);
     let done = false;
     let retried = false;
-    const finish = () => {
+    let interim = ""; // latest non-final text, used if the engine ends without a final result
+    const finish = (fallback = false) => {
       if (done) return;
       done = true;
+      if (fallback && interim) onTalkRef.current?.(interim);
       setTalking(false);
     };
     rec.onresult = (e) => {
       for (let i = e.resultIndex; i < e.results.length; i++) {
         const result = e.results[i];
-        if (!result.isFinal) continue;
-        const sentence = result[0].transcript.replace(/\s+/g, " ").trim().slice(0, MAX_TRANSCRIPT_CHARS);
+        const sentence = clean(result[0].transcript);
+        if (!result.isFinal) {
+          if (sentence) interim = sentence;
+          continue;
+        }
         if (sentence && !done) {
           onTalkRef.current?.(sentence);
           finish();
@@ -170,19 +189,21 @@ export function useVoiceTrigger({
         preferOnDevice(rec, tag);
         try {
           rec.start();
+          logStart("talk", rec);
           return;
         } catch {
           // fall through
         }
       }
-      finish();
+      finish(true);
     };
     const timer = setTimeout(() => {
-      finish();
+      finish(true);
       rec.abort();
     }, TALK_TIMEOUT_MS);
     try {
       rec.start();
+      logStart("talk", rec);
     } catch {
       clearTimeout(timer);
       queueMicrotask(finish);
@@ -211,12 +232,17 @@ export function useVoiceTrigger({
     rec.interimResults = true;
     preferOnDevice(rec, tag);
 
+    let interim = ""; // latest non-final text of the current utterance
     rec.onstart = () => setListening(true);
     rec.onresult = (e) => {
       for (let i = e.resultIndex; i < e.results.length; i++) {
         const result = e.results[i];
-        if (!result.isFinal) continue;
-        const sentence = result[0].transcript.replace(/\s+/g, " ").trim().slice(0, MAX_TRANSCRIPT_CHARS);
+        const sentence = clean(result[0].transcript);
+        if (!result.isFinal) {
+          interim = sentence;
+          continue;
+        }
+        interim = "";
         if (sentence && containsTrigger(sentence, lang)) onTriggerRef.current(sentence);
       }
     };
@@ -226,11 +252,14 @@ export function useVoiceTrigger({
     };
     rec.onend = () => {
       setListening(false);
+      if (interim && containsTrigger(interim, lang)) onTriggerRef.current(interim); // ended without a final result
+      interim = "";
       if (stopped) return;
       restartTimer = setTimeout(() => {
         preferOnDevice(rec, tag); // picks up a model that finished installing meanwhile
         try {
           rec.start();
+          logStart("background", rec);
         } catch {
           // Already started or not allowed right now; the next `end` will retry.
         }
@@ -239,6 +268,7 @@ export function useVoiceTrigger({
 
     try {
       rec.start();
+      logStart("background", rec);
     } catch {
       return;
     }
