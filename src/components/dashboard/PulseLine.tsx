@@ -33,7 +33,7 @@ export default function PulseLine({
         <path
           d={PATH}
           fill="none"
-          stroke={color}
+          style={{ stroke: color }}
           strokeWidth={height > 32 ? 2.5 : 1.75}
           strokeLinejoin="round"
           vectorEffect="non-scaling-stroke"

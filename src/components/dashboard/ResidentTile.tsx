@@ -58,12 +58,12 @@ export default function ResidentTile({
       <PulseLine heartRate={resident.heartRate} color={p ? p.stroke : CALM_STROKE} height={lg ? 64 : 28} />
       <div className="flex items-end justify-between gap-2">
         <span className="flex items-baseline gap-1">
-          <span className={`num leading-none ${lg ? "text-display" : "text-xl"} ${hrWarning ? "text-warn" : "text-ink"}`}>
+          <span className={`num leading-none ${lg ? "text-display" : "text-xl"} ${hrWarning ? "text-warn-ink" : "text-ink"}`}>
             {heartRate}
           </span>
           <span className="text-xs text-muted">bpm</span>
           {hrWarning && (
-            <span className="ml-1 inline-flex items-center gap-0.5 self-center rounded-full border border-warn px-1.5 text-xs font-medium text-warn">
+            <span className="ml-1 inline-flex items-center gap-0.5 self-center rounded-full border border-warn px-1.5 text-xs font-medium text-warn-ink">
               <Warning size={12} weight="bold" aria-hidden />
               HR
             </span>
@@ -71,7 +71,7 @@ export default function ResidentTile({
         </span>
         {alert && p && TypeIcon ? (
           <span
-            className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-semibold text-bg ${p.bg} ${lg ? "text-sm" : "text-xs"}`}
+            className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-semibold ${p.chip} ${lg ? "text-sm" : "text-xs"}`}
           >
             <TypeIcon size={lg ? 16 : 14} weight="bold" aria-hidden />
             {p.label}

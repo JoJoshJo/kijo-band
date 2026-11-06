@@ -77,7 +77,7 @@ export default function ResidentDrawer({
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end" role="dialog" aria-modal="true" aria-label={`${resident.name} quick info`}>
-      <button type="button" aria-label="Close" onClick={onClose} className="absolute inset-0 bg-black/60" />
+      <button type="button" aria-label="Close" onClick={onClose} className="absolute inset-0 bg-scrim" />
       <aside className="kijo-drawer-enter relative flex h-full w-full max-w-md flex-col overflow-y-auto border-l border-line bg-surface shadow-2xl">
         <div className="flex items-center justify-between px-5 pt-4">
           <span className="rounded border border-line-2 px-2 py-0.5 text-xs font-semibold tracking-widest text-muted">
@@ -96,7 +96,7 @@ export default function ResidentDrawer({
         {/* Code status first, large */}
         <div
           className={`mx-5 mt-3 rounded-card border-2 px-4 py-3 text-center text-display font-semibold tracking-wide ${
-            dnr ? "border-fuchsia-400 bg-fuchsia-500/15 text-fuchsia-200" : "border-line-2 bg-surface-2 text-ink"
+            dnr ? "border-fuchsia-400 bg-fuchsia-500/15 text-fuchsia-200 light:border-fuchsia-700 light:bg-fuchsia-50 light:text-fuchsia-800" : "border-line-2 bg-surface-2 text-ink"
           }`}
         >
           {dnr ? "DNR" : "FULL CODE"}
@@ -145,9 +145,9 @@ export default function ResidentDrawer({
                   // Purple outline, not red: red is reserved for alarms.
                   <span
                     key={a}
-                    className="rounded border border-violet-400 bg-violet-500/10 px-2 py-0.5 text-xs font-semibold text-violet-200"
+                    className="rounded border border-violet-400 bg-violet-500/10 px-2 py-0.5 text-xs font-semibold text-violet-200 light:border-violet-600 light:bg-violet-50 light:text-violet-900"
                   >
-                    <span className="text-violet-400">Allergy ·</span> {a}
+                    <span className="text-violet-400 light:text-violet-700">Allergy ·</span> {a}
                   </span>
                 ))}
               </span>
@@ -180,7 +180,7 @@ export default function ResidentDrawer({
             <ul className="py-1">
               {history.map((a) => (
                 <li key={a.id} className="flex items-center gap-2 py-1 text-sm">
-                  <span className={`rounded-full px-2 text-xs font-semibold text-bg ${PRIORITY[a.priority].bg}`}>
+                  <span className={`rounded-full px-2 text-xs font-semibold ${PRIORITY[a.priority].chip}`}>
                     {PRIORITY[a.priority].label}
                   </span>
                   <span className="min-w-0 truncate">

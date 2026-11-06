@@ -79,7 +79,7 @@ export default function HandoffPanel() {
           type="button"
           onClick={generate}
           disabled={loading}
-          className="inline-flex h-10 items-center rounded-btn bg-brand px-4 text-sm font-semibold text-bg hover:bg-brand/85 disabled:opacity-60"
+          className="inline-flex h-10 items-center rounded-btn bg-brand px-4 text-sm font-semibold text-on-brand hover:bg-brand-hover disabled:opacity-60"
         >
           {loading ? "Writing…" : state.kind === "done" ? "Regenerate" : "Generate shift handoff"}
         </button>

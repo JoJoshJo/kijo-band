@@ -1,6 +1,7 @@
 import { CaretRight, QrCode, ShieldCheck, Stethoscope, Watch } from "@phosphor-icons/react/dist/ssr";
 import Link from "next/link";
 import { findLogo } from "@/components/dashboard/findLogo";
+import ThemeToggle from "@/components/theme/ThemeToggle";
 
 const ENTRIES = [
   { href: "/nurse", icon: Stethoscope, title: "Nurse view", text: "Your residents and your alert queue" },
@@ -12,13 +13,16 @@ const ENTRIES = [
 export default function Home() {
   const logoSrc = findLogo();
   return (
-    <main className="flex min-h-screen flex-1 flex-col items-center justify-center gap-12 bg-bg px-4 py-16 text-ink sm:px-8">
+    <main className="relative flex min-h-screen flex-1 flex-col items-center justify-center gap-12 bg-bg px-4 py-16 text-ink sm:px-8">
+      <div className="absolute right-4 top-4">
+        <ThemeToggle />
+      </div>
       <div className="flex flex-col items-center gap-4">
         {logoSrc && (
           // Same treatment as the header: black-on-white source → white glyph on the dark background.
           <span className="relative block h-24 w-24 overflow-hidden" aria-hidden>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={logoSrc} alt="" width={96} height={96} className="h-full w-full scale-[1.4] mix-blend-screen invert" />
+            <img src={logoSrc} alt="" width={96} height={96} className="h-full w-full scale-[1.4] kj-logo" />
           </span>
         )}
         <h1 className="text-display font-semibold tracking-[0.4em] text-ink">KIJO</h1>

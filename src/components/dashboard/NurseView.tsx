@@ -97,7 +97,7 @@ export default function NurseView({ nurseId, logoSrc }: { nurseId: string; logoS
             {nurse && (
               <Link
                 href="/dashboard"
-                className="inline-flex h-10 items-center rounded-btn bg-brand px-4 font-semibold text-bg hover:bg-brand/85"
+                className="inline-flex h-10 items-center rounded-btn bg-brand px-4 font-semibold text-on-brand hover:bg-brand-hover"
               >
                 Open Charge view
               </Link>
@@ -233,7 +233,7 @@ function TeamEmergencies({
         return (
           <div
             key={a.id}
-            className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-alarm/40 bg-[#2a1416] px-4 py-2 text-sm text-ink"
+            className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-alarm/40 bg-tint-p1 px-4 py-2 text-sm text-ink"
           >
             <Siren size={18} weight="bold" className="kijo-flash-fast text-alarm" aria-hidden />
             <span className="font-semibold">Team emergency</span>
@@ -260,7 +260,7 @@ function TeamEmergencies({
                       setBusy(null);
                     }
                   }}
-                  className="inline-flex h-11 items-center rounded-btn bg-brand px-4 text-sm font-semibold text-bg hover:bg-brand/85 disabled:opacity-60 lg:h-8 lg:px-3"
+                  className="inline-flex h-11 items-center rounded-btn bg-brand px-4 text-sm font-semibold text-on-brand hover:bg-brand-hover disabled:opacity-60 lg:h-8 lg:px-3"
                 >
                   {busy === a.id ? "…" : "Assist"}
                 </button>

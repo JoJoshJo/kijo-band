@@ -22,7 +22,7 @@ export default function Modal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label={title}>
-      <button type="button" aria-label="Close" tabIndex={-1} onClick={onClose} className="absolute inset-0 bg-black/70" />
+      <button type="button" aria-label="Close" tabIndex={-1} onClick={onClose} className="absolute inset-0 bg-scrim" />
       <div
         className={`kijo-modal-enter relative max-h-[calc(100dvh-2rem)] w-full overflow-y-auto rounded-card border border-line-2 bg-surface p-6 shadow-2xl ${
           wide ? "max-w-2xl" : "max-w-md"

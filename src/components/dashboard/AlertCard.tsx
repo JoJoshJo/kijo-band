@@ -78,7 +78,7 @@ export default function AlertCard({
       <div className="flex items-start gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <span className={`rounded-full px-2 py-0.5 text-xs font-semibold text-bg ${p.bg}`}>{p.label}</span>
+            <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${p.chip}`}>{p.label}</span>
             <span className="inline-flex items-center gap-1.5 text-sm font-medium text-ink">
               <TypeIcon size={18} weight="bold" aria-hidden />
               {ALERT_LABEL[alert.type]}
@@ -152,7 +152,7 @@ export default function AlertCard({
             type="button"
             disabled={busy !== null}
             onClick={() => run("acknowledge", actingNurseId)}
-            className={`${BTN} bg-brand text-bg hover:bg-brand/85`}
+            className={`${BTN} bg-brand text-on-brand hover:bg-brand-hover`}
           >
             {busy === "acknowledge" ? "…" : "I'm on it"}
           </button>

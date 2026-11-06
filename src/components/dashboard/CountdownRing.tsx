@@ -16,22 +16,21 @@ export default function CountdownRing({
   const r = 16;
   const c = 2 * Math.PI * r;
   const frac = remainingMs == null ? 1 : Math.max(0, Math.min(1, remainingMs / totalMs));
-  const stroke = remainingMs == null ? "#8a97a6" : color;
+  const stroke = remainingMs == null ? "var(--kj-muted)" : color;
   return (
     <div className="relative h-12 w-12 shrink-0" title="Time until escalation to charge nurse">
       <svg viewBox="0 0 40 40" className="h-12 w-12 -rotate-90" aria-hidden>
-        <circle cx="20" cy="20" r={r} fill="none" stroke="#243041" strokeWidth="3.5" />
+        <circle cx="20" cy="20" r={r} fill="none" style={{ stroke: "var(--kj-line-2)" }} strokeWidth="3.5" />
         <circle
           cx="20"
           cy="20"
           r={r}
           fill="none"
-          stroke={stroke}
+          style={{ stroke, transition: "stroke-dashoffset 0.5s linear" }}
           strokeWidth="3.5"
           strokeLinecap="round"
           strokeDasharray={c}
           strokeDashoffset={c * (1 - frac)}
-          style={{ transition: "stroke-dashoffset 0.5s linear" }}
         />
       </svg>
       <span className="num absolute inset-0 flex items-center justify-center text-xs text-ink">

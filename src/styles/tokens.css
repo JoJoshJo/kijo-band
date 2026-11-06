@@ -1,5 +1,8 @@
 /*
  * Kijo shared design tokens (dashboard + band). Imported once by src/app/globals.css.
+ * Themes: :root = dark (default); [data-theme="light"] overrides the same variables, so every
+ * token class (bg-surface, text-ink, bg-chip-p2, …) switches automatically. To adopt light mode
+ * elsewhere (e.g. the band), only use token classes / var(--kj-*) and set data-theme on a container.
  *
  * Color rules: red (alarm) and yellow (warn) are ONLY for alarms. Brand teal is for primary
  * buttons only. Green (ok) means "resident OK". Everything else is neutral surface/ink.
@@ -9,6 +12,8 @@
  */
 
 :root {
+  /* DARK theme (default) */
+  color-scheme: dark;
   --kj-bg: #0b0f14;
   --kj-surface: #121820;
   --kj-surface-2: #18202a;
@@ -17,12 +22,63 @@
   --kj-ink: #e8eef5;
   --kj-muted: #8a97a6;
   --kj-brand: #2bb3a3;
+  --kj-brand-hover: #3cc4b4;
+  --kj-on-brand: #0b0f14;
   --kj-ok: #3dd68c;
   --kj-alarm: #e5484d;
-  --kj-warn: #f5b83d;
+  --kj-warn: #f5b83d; /* borders, strokes, fills */
+  --kj-warn-ink: #f5b83d; /* warn-colored text */
   --kj-info: #4cc3e6;
+  /* Priority chips (tag background + text) and tile tints */
+  --kj-chip-p1-bg: var(--kj-alarm);
+  --kj-chip-p1-fg: #0b0f14;
+  --kj-chip-p2-bg: var(--kj-warn);
+  --kj-chip-p2-fg: #0b0f14;
+  --kj-chip-p3-bg: var(--kj-info);
+  --kj-chip-p3-fg: #0b0f14;
+  --kj-tint-p1: rgb(229 72 77 / 0.1);
+  --kj-tint-p2: rgb(245 184 61 / 0.1);
+  --kj-tint-p3: rgb(76 195 230 / 0.05);
+  --kj-calm: #5d6b7b; /* pulse line on a calm tile */
+  --kj-scrim: rgb(0 0 0 / 0.7);
+  --kj-logo-filter: invert(1);
+  --kj-logo-blend: screen;
   --kj-ease: cubic-bezier(0.2, 0, 0, 1);
 }
+
+/* LIGHT theme: set data-theme="light" on <html> (or any container). All text ≥ 4.5:1, UI marks ≥ 3:1. */
+[data-theme="light"] {
+  color-scheme: light;
+  --kj-bg: #f6f8fa;
+  --kj-surface: #ffffff;
+  --kj-surface-2: #f0f3f6;
+  --kj-line: #d8dee4;
+  --kj-line-2: #c9d1d9;
+  --kj-ink: #0f1720;
+  --kj-muted: #5b6774;
+  --kj-brand: #0d8478; /* #0f8f82 gave 3.98:1 with white text */
+  --kj-brand-hover: #0b7268;
+  --kj-on-brand: #ffffff;
+  --kj-ok: #1e8e5a;
+  --kj-alarm: #c9252b;
+  --kj-warn: #b7791f;
+  --kj-warn-ink: #94600f; /* #b7791f text gave 3.32:1 on the tint */
+  --kj-info: #0b7fa6;
+  --kj-chip-p1-fg: #ffffff;
+  --kj-chip-p2-bg: #fff4d6;
+  --kj-chip-p2-fg: var(--kj-warn-ink);
+  --kj-chip-p3-fg: #ffffff;
+  --kj-tint-p1: #fbe9ea;
+  --kj-tint-p2: #fff4d6;
+  --kj-tint-p3: #eef7fb;
+  --kj-calm: #a3aeba;
+  --kj-scrim: rgb(15 23 32 / 0.4);
+  --kj-logo-filter: none;
+  --kj-logo-blend: multiply;
+}
+
+/* `light:` variant for the rare per-theme tweak (e.g. light:text-fuchsia-800). */
+@custom-variant light (&:where([data-theme="light"], [data-theme="light"] *));
 
 @theme inline {
   --color-bg: var(--kj-bg);
@@ -33,10 +89,23 @@
   --color-ink: var(--kj-ink);
   --color-muted: var(--kj-muted);
   --color-brand: var(--kj-brand);
+  --color-brand-hover: var(--kj-brand-hover);
+  --color-on-brand: var(--kj-on-brand);
   --color-ok: var(--kj-ok);
   --color-alarm: var(--kj-alarm);
   --color-warn: var(--kj-warn);
+  --color-warn-ink: var(--kj-warn-ink);
   --color-info: var(--kj-info);
+  --color-chip-p1: var(--kj-chip-p1-bg);
+  --color-chip-p1-fg: var(--kj-chip-p1-fg);
+  --color-chip-p2: var(--kj-chip-p2-bg);
+  --color-chip-p2-fg: var(--kj-chip-p2-fg);
+  --color-chip-p3: var(--kj-chip-p3-bg);
+  --color-chip-p3-fg: var(--kj-chip-p3-fg);
+  --color-tint-p1: var(--kj-tint-p1);
+  --color-tint-p2: var(--kj-tint-p2);
+  --color-tint-p3: var(--kj-tint-p3);
+  --color-scrim: var(--kj-scrim);
 
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
@@ -65,6 +134,12 @@
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--kj-muted);
+}
+
+/* Black-on-white logo source → white glyph on dark, dark glyph on light. */
+@utility kj-logo {
+  filter: var(--kj-logo-filter);
+  mix-blend-mode: var(--kj-logo-blend);
 }
 
 @layer base {

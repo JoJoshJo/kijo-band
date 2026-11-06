@@ -2,6 +2,7 @@
 
 import { Moon } from "@phosphor-icons/react";
 import { useEffect, useState } from "react";
+import ThemeToggle from "@/components/theme/ThemeToggle";
 import { ViewToggle, type View } from "./views";
 
 // Demo night clock: starts at 03:12 AM when the dashboard opens and advances in real time.
@@ -46,7 +47,7 @@ export function Logo({ src, size = 32 }: { src: string | null; size?: number }) 
   return (
     <span className="relative block shrink-0 overflow-hidden" style={{ width: size, height: size }} aria-hidden>
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={src} alt="" width={size} height={size} className="h-full w-full scale-[1.4] mix-blend-screen invert" decoding="async" />
+      <img src={src} alt="" width={size} height={size} className="h-full w-full scale-[1.4] kj-logo" decoding="async" />
     </span>
   );
 }
@@ -117,6 +118,7 @@ export default function Header({
       {info && <span className="order-5 lg:order-4">{info}</span>}
       <div className="order-2 ml-auto flex flex-wrap items-center justify-end gap-2 lg:order-5">
         {actions}
+        <ThemeToggle />
         <LivePill live={live} />
       </div>
     </header>

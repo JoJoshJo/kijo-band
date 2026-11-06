@@ -20,15 +20,16 @@ import type { Alert, AlertPriority, AlertType, Nurse } from "@/lib/types";
 // Red/yellow are reserved for alarms — don't use them for anything else on the dashboard.
 export const PRIORITY: Record<
   AlertPriority,
-  { label: string; text: string; bg: string; border: string; tint: string; stroke: string; flash: string }
+  { label: string; text: string; bg: string; border: string; chip: string; tint: string; stroke: string; flash: string }
 > = {
-  1: { label: "P1", text: "text-alarm", bg: "bg-alarm", border: "border-alarm", tint: "bg-alarm/10", stroke: "#e5484d", flash: "kijo-flash-fast" },
-  2: { label: "P2", text: "text-warn", bg: "bg-warn", border: "border-warn", tint: "bg-warn/10", stroke: "#f5b83d", flash: "kijo-flash-slow" },
-  3: { label: "P3", text: "text-info", bg: "bg-info", border: "border-info/70", tint: "bg-info/5", stroke: "#4cc3e6", flash: "" },
+  // Colors come from the theme tokens (src/styles/tokens.css), so they follow light / dark mode.
+  1: { label: "P1", text: "text-alarm", bg: "bg-alarm", border: "border-alarm", chip: "bg-chip-p1 text-chip-p1-fg", tint: "bg-tint-p1", stroke: "var(--kj-alarm)", flash: "kijo-flash-fast" },
+  2: { label: "P2", text: "text-warn-ink", bg: "bg-warn", border: "border-warn", chip: "bg-chip-p2 text-chip-p2-fg ring-1 ring-inset ring-warn", tint: "bg-tint-p2", stroke: "var(--kj-warn)", flash: "kijo-flash-slow" },
+  3: { label: "P3", text: "text-info", bg: "bg-info", border: "border-info/70", chip: "bg-chip-p3 text-chip-p3-fg", tint: "bg-tint-p3", stroke: "var(--kj-info)", flash: "" },
 };
-export const OK_STROKE = "#3dd68c";
+export const OK_STROKE = "var(--kj-ok)";
 /** Pulse line on a calm (no alarm) tile: neutral, so color only means "alarm". */
-export const CALM_STROKE = "#5d6b7b";
+export const CALM_STROKE = "var(--kj-calm)";
 
 export const ALERT_LABEL: Record<AlertType, string> = {
   fall: "Fall",

@@ -23,7 +23,7 @@ export default function QrModal({ onClose }: { onClose: () => void }) {
   return (
     <Modal title="Join the demo" onClose={onClose} wide>
       <div className="flex flex-col items-center gap-4">
-        <div className="aspect-square w-full max-w-[520px] rounded-card bg-white p-4">
+        <div className="aspect-square w-full max-w-[520px] rounded-card border border-line bg-white p-4">
           {qr && (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={qr.dataUrl} alt={`QR code for ${qr.url}`} className="h-full w-full" />

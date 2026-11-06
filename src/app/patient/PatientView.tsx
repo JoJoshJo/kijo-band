@@ -116,7 +116,7 @@ export default function PatientView({ logoSrc }: { logoSrc: string | null }) {
           role="status"
           className="kijo-toast fixed right-6 top-28 z-50 flex items-center gap-4 rounded-card border border-line-2 bg-surface px-4 py-3 shadow-2xl"
         >
-          <span className={`rounded-full px-2 py-0.5 text-xs font-semibold text-bg ${PRIORITY[toast.priority].bg}`}>
+          <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${PRIORITY[toast.priority].chip}`}>
             {PRIORITY[toast.priority].label}
           </span>
           <span className="text-sm text-ink">
@@ -124,7 +124,7 @@ export default function PatientView({ logoSrc }: { logoSrc: string | null }) {
           </span>
           <Link
             href={nurseHref(toast.assignedNurseId)}
-            className="inline-flex h-9 items-center gap-1.5 rounded-btn bg-brand px-3 text-sm font-semibold text-bg hover:bg-brand/85"
+            className="inline-flex h-9 items-center gap-1.5 rounded-btn bg-brand px-3 text-sm font-semibold text-on-brand hover:bg-brand-hover"
           >
             View in Nurse view <ArrowRight size={16} weight="bold" aria-hidden />
           </Link>
