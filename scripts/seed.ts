@@ -81,7 +81,9 @@ const residents: Seed[] = [
 function splitStatements(text: string): string[] {
   return text
     .split("\n")
-    .filter((line) => !line.trim().startsWith("--"))
+    // Strip full-line AND inline `--` comments before splitting on ";" — an inline comment
+    // containing ";" would otherwise cut a statement in half. (schema.sql has no "--" in strings.)
+    .map((line) => line.replace(/--.*$/, ""))
     .join("\n")
     .split(";")
     .map((s) => s.trim())
