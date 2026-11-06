@@ -77,7 +77,7 @@ export default function ResidentDrawer({
   return (
     <div className="fixed inset-0 z-50 flex justify-end" role="dialog" aria-modal="true" aria-label={`${resident.name} quick info`}>
       <button type="button" aria-label="Close" onClick={onClose} className="absolute inset-0 bg-black/60" />
-      <aside className="kijo-drawer-enter relative flex h-full w-full max-w-md flex-col overflow-y-auto border-l border-slate-800 bg-[#0b1120] shadow-2xl">
+      <aside className="kijo-drawer-enter relative flex h-full w-full max-w-md flex-col overflow-y-auto border-l border-slate-800 bg-surface shadow-2xl">
         <div className="flex items-center justify-between px-5 pt-4">
           <span className="rounded border border-slate-600 px-2 py-0.5 text-[10px] font-semibold tracking-widest text-slate-400">
             DEMO DATA · FICTIONAL RESIDENT
@@ -178,7 +178,11 @@ export default function ResidentDrawer({
                     {PRIORITY[a.priority].label}
                   </span>
                   <span className="min-w-0 truncate">
-                    {ALERT_ICON[a.type]} {ALERT_LABEL[a.type]}
+                    {(() => {
+                      const I = ALERT_ICON[a.type];
+                      return <I size={16} aria-hidden className="mr-1 inline align-[-3px]" />;
+                    })()}
+                    {ALERT_LABEL[a.type]}
                     <span className="text-slate-500"> · {a.status}</span>
                     {a.escalatedTo && <span className="text-red-400"> · escalated</span>}
                   </span>

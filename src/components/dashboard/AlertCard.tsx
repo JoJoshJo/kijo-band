@@ -1,5 +1,7 @@
 "use client";
 
+import { CheckCircle, Heartbeat } from "@phosphor-icons/react";
+
 import { useState } from "react";
 import { RESIDENT_OK_SUFFIX, residentSaysOk } from "@/lib/detection/alertRules";
 import type { Alert, Nurse, Resident } from "@/lib/types";
@@ -37,6 +39,7 @@ export default function AlertCard({
   const [assistId, setAssistId] = useState("");
 
   const p = PRIORITY[alert.priority];
+  const TypeIcon = ALERT_ICON[alert.type];
   const isOpen = alert.status === "open";
   const nurseById = new Map(nurses.map((n) => [n.id, n]));
   const assigned = nurseById.get(alert.assignedNurseId);
@@ -74,7 +77,7 @@ export default function AlertCard({
               {p.label}
             </span>
             <span className="text-sm text-slate-300">
-              {ALERT_ICON[alert.type]} {ALERT_LABEL[alert.type]}
+              <TypeIcon size={18} weight="bold" aria-hidden className="inline align-[-3px]" /> {ALERT_LABEL[alert.type]}
             </span>
             {escalatedTo && (
               <span className="rounded bg-red-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
@@ -104,7 +107,7 @@ export default function AlertCard({
       {alert.priority === 1 && residentSaysOk(alert.summary) ? (
         <>
           <span className="mt-1.5 inline-flex items-center gap-1.5 rounded border border-emerald-500/60 bg-emerald-500/15 px-2 py-0.5 text-xs font-semibold text-emerald-300">
-            ✓ Resident says OK — still check
+            <CheckCircle size={16} weight="bold" aria-hidden /> Resident says OK — still check
           </span>
           <p className="mt-1 text-sm text-slate-200">{alert.summary.slice(0, -RESIDENT_OK_SUFFIX.length)}</p>
         </>
@@ -114,7 +117,7 @@ export default function AlertCard({
       {alert.transcript && <p className="mt-1 text-sm italic text-slate-400">“{alert.transcript}”</p>}
 
       <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400">
-        {alert.heartRate != null && <span>♥ {alert.heartRate} bpm</span>}
+        {alert.heartRate != null && <span className="inline-flex items-center gap-1"><Heartbeat size={16} aria-hidden /> {alert.heartRate} bpm</span>}
         <span>
           → <span className="text-slate-200">{assigned?.name ?? "Unassigned"}</span>
         </span>
@@ -140,7 +143,7 @@ export default function AlertCard({
             type="button"
             disabled={busy !== null}
             onClick={() => run("acknowledge", actingNurseId)}
-            className="rounded bg-teal-600 px-3 py-1 text-sm font-semibold text-white hover:bg-teal-500 disabled:opacity-50"
+            className="min-h-12 rounded bg-teal-600 px-5 text-base font-semibold text-white hover:bg-teal-500 disabled:opacity-50 lg:min-h-0 lg:px-3 lg:py-1 lg:text-sm"
           >
             {busy === "acknowledge" ? "…" : "Acknowledge"}
           </button>
@@ -149,7 +152,7 @@ export default function AlertCard({
           type="button"
           disabled={busy !== null}
           onClick={() => run("resolve")}
-          className="rounded bg-slate-700 px-3 py-1 text-sm font-semibold text-white hover:bg-slate-600 disabled:opacity-50"
+          className="min-h-12 rounded bg-slate-700 px-5 text-base font-semibold text-white hover:bg-slate-600 disabled:opacity-50 lg:min-h-0 lg:px-3 lg:py-1 lg:text-sm"
         >
           {busy === "resolve" ? "…" : "Resolve"}
         </button>
@@ -158,7 +161,7 @@ export default function AlertCard({
             <select
               value={assistId}
               onChange={(e) => setAssistId(e.target.value)}
-              className="rounded border border-slate-700 bg-slate-950 px-1.5 py-1 text-sm text-slate-200"
+              className="min-h-12 rounded border border-slate-700 bg-slate-950 px-1.5 text-sm text-slate-200 lg:min-h-0 lg:py-1"
               aria-label="Nurse to assist"
             >
               <option value="">Nurse…</option>
@@ -175,7 +178,7 @@ export default function AlertCard({
                 await run("assist", assistId);
                 setAssistId("");
               }}
-              className="rounded border border-teal-600 px-3 py-1 text-sm font-semibold text-teal-300 hover:bg-teal-600/20 disabled:opacity-40"
+              className="min-h-12 rounded border border-teal-600 px-4 text-sm font-semibold text-teal-300 hover:bg-teal-600/20 disabled:opacity-40 lg:min-h-0 lg:px-3 lg:py-1"
             >
               {busy === "assist" ? "…" : "Assist"}
             </button>

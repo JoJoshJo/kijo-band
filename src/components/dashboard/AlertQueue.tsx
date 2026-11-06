@@ -1,5 +1,7 @@
 "use client";
 
+import { CheckCircle } from "@phosphor-icons/react";
+
 import type { Alert, Nurse, Resident } from "@/lib/types";
 import AlertCard from "./AlertCard";
 import { sortAlerts } from "./util";
@@ -12,6 +14,8 @@ export default function AlertQueue({
   onChanged,
   onSelectResident,
   actingNurseId,
+  loading = false,
+  residentCount,
 }: {
   alerts: Alert[];
   residents: Resident[];
@@ -21,6 +25,10 @@ export default function AlertQueue({
   onSelectResident: (id: string) => void;
   /** Nurse view: whoever taps Acknowledge here becomes responding. Unset on the Charge view. */
   actingNurseId?: string;
+  /** No data yet → don't claim "all quiet". */
+  loading?: boolean;
+  /** Residents this queue covers, for the empty state. */
+  residentCount?: number;
 }) {
   const residentById = new Map(residents.map((r) => [r.id, r]));
   const sorted = sortAlerts(alerts);
@@ -33,7 +41,26 @@ export default function AlertQueue({
       </h2>
       <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-2">
         {sorted.length === 0 ? (
-          <p className="px-2 py-6 text-center text-sm text-emerald-400/80">All quiet — no active alerts</p>
+          loading ? (
+            <p className="px-2 py-6 text-center text-sm text-slate-500">Loading…</p>
+          ) : (
+            <div className="flex flex-col items-center gap-3 px-2 py-10 text-center">
+              <span
+                className="flex h-14 w-14 items-center justify-center rounded-full border border-emerald-500/40 bg-emerald-500/10 text-2xl text-emerald-300"
+                aria-hidden
+              >
+                <CheckCircle size={32} />
+              </span>
+              <p className="text-base font-semibold text-emerald-300">All quiet</p>
+              <p className="text-sm text-slate-400">
+                {residentCount === undefined
+                  ? "No active alerts"
+                  : residentCount === 0
+                    ? "No residents assigned"
+                    : `${residentCount} resident${residentCount === 1 ? "" : "s"}, all OK`}
+              </p>
+            </div>
+          )
         ) : (
           now != null &&
           sorted.map((a) => (

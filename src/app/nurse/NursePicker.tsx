@@ -29,7 +29,7 @@ export default function NursePicker({ logoSrc }: { logoSrc: string | null }) {
   const nurses = (data?.nurses ?? []).filter((n) => n.role !== "Charge");
 
   return (
-    <div className="flex h-screen flex-col bg-[#070b14] text-slate-100">
+    <div className="flex h-screen flex-col bg-bg text-slate-100">
       <Header logoSrc={logoSrc} view="nurse" live={error ? "offline" : data ? "live" : "connecting"} />
       <main className="flex flex-1 flex-col items-center justify-center gap-8 p-8">
         <h1 className="text-4xl font-bold text-white">Who&apos;s on shift?</h1>

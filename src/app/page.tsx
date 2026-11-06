@@ -1,17 +1,18 @@
+import { QrCode, ShieldCheck, Stethoscope, Watch } from "@phosphor-icons/react/dist/ssr";
 import Link from "next/link";
 import { findLogo } from "@/components/dashboard/findLogo";
 
 const ENTRIES = [
-  { href: "/nurse", icon: "🩺", title: "Nurse view", text: "Your residents and your alert queue" },
-  { href: "/patient", icon: "⌚", title: "Patient view", text: "The Kijo Band, as a resident wears it" },
-  { href: "/dashboard", icon: "🛡️", title: "Charge view", text: "Whole floor, escalations, Night Report" },
-  { href: "/join", icon: "📱", title: "Join as a resident", text: "Scan the QR and become a guest room" },
+  { href: "/nurse", icon: Stethoscope, title: "Nurse view", text: "Your residents and your alert queue" },
+  { href: "/patient", icon: Watch, title: "Patient view", text: "The Kijo Band, as a resident wears it" },
+  { href: "/dashboard", icon: ShieldCheck, title: "Charge view", text: "Whole floor, escalations, Night Report" },
+  { href: "/join", icon: QrCode, title: "Join as a resident", text: "Scan the QR and become a guest room" },
 ] as const;
 
 export default function Home() {
   const logoSrc = findLogo();
   return (
-    <main className="flex min-h-screen flex-1 flex-col items-center justify-center gap-12 bg-[#070b14] px-8 py-16 text-slate-100">
+    <main className="flex min-h-screen flex-1 flex-col items-center justify-center gap-12 bg-bg px-8 py-16 text-slate-100">
       <div className="flex flex-col items-center gap-4">
         {logoSrc && (
           // Same treatment as the header: black-on-white source → white glyph on the dark background.
@@ -32,7 +33,7 @@ export default function Home() {
             className="group flex items-center gap-5 rounded-2xl border border-slate-700 bg-slate-900/80 p-7 transition hover:border-teal-500 hover:bg-slate-800 focus-visible:border-teal-400 focus-visible:outline-none"
           >
             <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-teal-500/15 text-3xl" aria-hidden>
-              {e.icon}
+              <e.icon size={32} />
             </span>
             <span className="flex flex-col gap-1">
               <span className="text-2xl font-semibold text-white group-hover:text-teal-300">{e.title}</span>

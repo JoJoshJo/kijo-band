@@ -1,5 +1,7 @@
 "use client";
 
+import { Warning } from "@phosphor-icons/react";
+
 import type { Alert, MotionState, Resident } from "@/lib/types";
 import PulseLine from "./PulseLine";
 import { ALERT_LABEL, OK_STROKE, PRIORITY } from "./util";
@@ -58,11 +60,11 @@ export default function ResidentTile({
           )}
         </span>
       </div>
-      <div className={`truncate font-medium text-slate-100 ${lg ? "text-2xl" : "text-sm"}`}>{resident.name}</div>
+      <div className={`truncate font-medium text-slate-100 ${lg ? "text-xl sm:text-2xl" : "text-sm"}`}>{resident.name}</div>
       <PulseLine heartRate={resident.heartRate} color={p ? p.stroke : OK_STROKE} height={lg ? 72 : 32} />
       <div className="flex items-center justify-between">
         <span
-          className={`font-mono leading-none ${lg ? "text-4xl" : "text-lg"} ${
+          className={`font-mono leading-none ${lg ? "text-3xl sm:text-4xl" : "text-lg"} ${
             hrWarning ? "text-yellow-300" : p ? p.text : "text-emerald-400"
           }`}
         >
@@ -70,7 +72,7 @@ export default function ResidentTile({
           <span className="ml-0.5 text-[10px] text-slate-500">bpm</span>
           {hrWarning && (
             <span className="ml-1 rounded border border-yellow-300 px-1 align-middle text-[9px] font-bold text-yellow-300">
-              ⚠ HR
+              <Warning size={10} weight="bold" aria-hidden className="mr-0.5 inline align-[-1px]" />HR
             </span>
           )}
         </span>

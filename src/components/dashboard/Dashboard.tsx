@@ -1,5 +1,7 @@
 "use client";
 
+import { SpeakerHigh, SpeakerSlash } from "@phosphor-icons/react";
+
 import { useCallback, useState } from "react";
 import useSWR from "swr";
 import type { Resident, StateResponse } from "@/lib/types";
@@ -12,6 +14,8 @@ import QrModal from "./QrModal";
 import ResetModal from "./ResetModal";
 import { useAlarmSounds } from "./useAlarmSounds";
 import ResidentDrawer from "./ResidentDrawer";
+import { AutopilotPill, useAutopilot } from "./useAutopilot";
+import ConnectionBanner from "./ConnectionBanner";
 import { useDemoShortcuts } from "./useDemoShortcuts";
 import { useEscalation } from "./useEscalation";
 import { useHeartRateDrift } from "./useHeartRateDrift";
@@ -26,10 +30,13 @@ const fetcher = async (url: string): Promise<StateResponse> => {
 
 export default function Dashboard({ logoSrc }: { logoSrc: string | null }) {
   const [skew, setSkew] = useState(0); // serverTime - clientTime, so timers match the DB clock
+  const [lastOkAt, setLastOkAt] = useState<number | null>(null);
   const { track, displayHr } = useHeartRateDrift();
+  // On errors SWR keeps the last good `data`, so the floor stays on screen under the banner.
   const { data, error, mutate } = useSWR<StateResponse>("/api/state", fetcher, {
     refreshInterval: 1000,
     onSuccess: (d) => {
+      setLastOkAt(Date.now());
       setSkew(d.serverTime - Date.now());
       track(d.residents);
     },
@@ -50,6 +57,7 @@ export default function Dashboard({ logoSrc }: { logoSrc: string | null }) {
   const alerts = data?.alerts ?? [];
   useEscalation(alerts, now, refresh);
   useDemoShortcuts(residents, alerts);
+  const autopilot = useAutopilot(alerts); // hidden: Shift+A start, Esc stop
   const sound = useAlarmSounds(data?.alerts);
   const heartRateOf = useCallback((r: Resident) => displayHr(r, clientNow), [displayHr, clientNow]);
 
@@ -59,7 +67,7 @@ export default function Dashboard({ logoSrc }: { logoSrc: string | null }) {
   const badgeNurses = nurses.filter((n) => !podNurses.includes(n));
 
   return (
-    <div className="flex h-screen flex-col bg-[#070b14] text-slate-100">
+    <div className="flex h-screen flex-col bg-bg text-slate-100">
       <Header
         logoSrc={logoSrc}
         view="charge"
@@ -84,7 +92,10 @@ export default function Dashboard({ logoSrc }: { logoSrc: string | null }) {
                 sound.muted ? "border-slate-700 text-slate-500" : "border-slate-600 text-slate-200"
               } hover:bg-slate-800`}
             >
-              {sound.muted ? "🔇 Muted" : sound.ready ? "🔊 Sound on" : "🔈 Click to enable sound"}
+              <span className="inline-flex items-center gap-1.5">
+                {sound.muted ? <SpeakerSlash size={18} aria-hidden /> : <SpeakerHigh size={18} aria-hidden />}
+                {sound.muted ? "Muted" : sound.ready ? "Sound on" : "Click to enable sound"}
+              </span>
             </button>
             <button
               type="button"
@@ -110,6 +121,7 @@ export default function Dashboard({ logoSrc }: { logoSrc: string | null }) {
           </>
         }
       />
+      <ConnectionBanner offline={!!error} lastOkAt={lastOkAt} now={clientNow} />
 
       <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_460px] gap-3 p-3">
         {/* Nurse pods */}
@@ -140,6 +152,8 @@ export default function Dashboard({ logoSrc }: { logoSrc: string | null }) {
           now={now}
           onChanged={refresh}
           onSelectResident={setSelectedId}
+          loading={!data}
+          residentCount={residents.length}
         />
       </div>
 
@@ -159,6 +173,8 @@ export default function Dashboard({ logoSrc }: { logoSrc: string | null }) {
           onClose={closeDrawer}
         />
       )}
+
+      <AutopilotPill status={autopilot.status} />
     </div>
   );
 }
