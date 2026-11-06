@@ -125,8 +125,12 @@ export default function ResidentDrawer({
             ) : (
               <span className="flex flex-wrap gap-1">
                 {resident.allergies.map((a) => (
-                  <span key={a} className="rounded bg-red-600 px-2 py-0.5 text-xs font-semibold text-white">
-                    {a}
+                  // Purple outline, not red: red is reserved for alarms.
+                  <span
+                    key={a}
+                    className="rounded border border-violet-400 bg-violet-500/10 px-2 py-0.5 text-xs font-semibold text-violet-200"
+                  >
+                    <span className="text-violet-400">Allergy ·</span> {a}
                   </span>
                 ))}
               </span>
