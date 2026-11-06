@@ -1,4 +1,5 @@
 import "server-only";
+import Anthropic from "@anthropic-ai/sdk";
 import type { AlertPriority, Language } from "@/lib/types";
 import type { TriageResult } from "@/lib/detection/voice";
 
@@ -40,13 +41,70 @@ export function parseTriageOutput(text: string): TriageResult | null {
   };
 }
 
+const DEFAULT_MODEL = "claude-haiku-5-5";
+
+// JSON schema for structured output; parseTriageOutput() still validates everything.
+const TRIAGE_SCHEMA = {
+  type: "object",
+  properties: {
+    priority: { type: "integer", enum: [1, 2, 3] },
+    category: { type: "string" },
+    summary: { type: "string" },
+    patientMessage: { type: "string" },
+  },
+  required: ["priority", "category", "summary", "patientMessage"],
+  additionalProperties: false,
+} as const;
+
+let client: Anthropic | null = null;
+function getClient(): Anthropic | null {
+  if (!process.env.ANTHROPIC_API_KEY) return null;
+  // No retries: a slow or failed call must fall back to keywords within the 4s budget.
+  client ??= new Anthropic({ timeout: TRIAGE_TIMEOUT_MS, maxRetries: 0 });
+  return client;
+}
+
 /**
- * Claude triage. NOT WIRED YET: returns null (→ keyword fallback) until `@anthropic-ai/sdk` is added
- * to package.json and ANTHROPIC_API_KEY is set. The call will use ANTHROPIC_MODEL (default
- * claude-haiku-5-5), a TRIAGE_TIMEOUT_MS timeout with no retries, and parseTriageOutput().
+ * Claude triage (spec section 5). Returns null — so the caller uses the keyword fallback — when there is
+ * no API key, on timeout (4s) or any API error, on a refusal or truncated reply, or on invalid JSON.
+ * The transcript is sent as data inside tags and the system prompt says to treat it as data.
  */
-export async function triageWithClaude(_transcript: string, _language: Language): Promise<TriageResult | null> {
-  void _transcript;
-  void _language;
-  return null;
+export async function triageWithClaude(transcript: string, language: Language): Promise<TriageResult | null> {
+  const anthropic = getClient();
+  if (!anthropic) return null;
+  try {
+    const response = await anthropic.messages.create(
+      {
+        model: process.env.ANTHROPIC_MODEL || DEFAULT_MODEL,
+        max_tokens: 400,
+        // Fast single-shot classification: thinking off (Haiku 5.5 allows this at effort high or below).
+        thinking: { type: "disabled" },
+        system: systemPrompt(language),
+        messages: [{ role: "user", content: `<transcript>${transcript}</transcript>` }],
+        output_config: { effort: "low", format: { type: "json_schema", schema: TRIAGE_SCHEMA } },
+      },
+      { signal: AbortSignal.timeout(TRIAGE_TIMEOUT_MS) },
+    );
+    if (response.stop_reason !== "end_turn") {
+      console.warn(`/api/triage: Claude stop_reason=${response.stop_reason}, using keyword fallback`);
+      return null;
+    }
+    const text = response.content.flatMap((b) => (b.type === "text" ? [b.text] : [])).join("");
+    const parsed = parseTriageOutput(text);
+    if (!parsed) console.warn("/api/triage: Claude returned invalid JSON, using keyword fallback");
+    return parsed;
+  } catch (err) {
+    const kind =
+      err instanceof Anthropic.APIConnectionTimeoutError || (err instanceof Error && err.name === "TimeoutError")
+        ? "timeout"
+        : err instanceof Anthropic.AuthenticationError
+          ? "auth error"
+          : err instanceof Anthropic.RateLimitError
+            ? "rate limited"
+            : err instanceof Anthropic.APIError
+              ? `API error ${err.status}`
+              : "error";
+    console.warn(`/api/triage: Claude ${kind}, using keyword fallback`);
+    return null;
+  }
 }
