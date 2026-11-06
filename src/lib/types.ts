@@ -34,9 +34,12 @@ export interface Resident {
   status: ResidentStatus;
   heartRate: number; // live (simulated or measured)
   lastMotionAt: number;
+  motionState?: MotionState | null; // band motion monitor; null/absent = unknown
   isGuest?: boolean;
   createdAt: number;
 }
+
+export type MotionState = "moving" | "still" | "lying";
 
 export type NurseRole = "CNA" | "RN" | "Charge";
 export type NurseStatus = "available" | "responding";
@@ -57,7 +60,9 @@ export type AlertType =
   | "need_bathroom"
   | "need_water"
   | "need_help"
-  | "vitals";
+  | "vitals"
+  | "inactivity"
+  | "up_at_night";
 
 /** 1 = critical (red, 0.5s flash), 2 = urgent (yellow, 2s flash), 3 = routine (light blue, steady) */
 export type AlertPriority = 1 | 2 | 3;

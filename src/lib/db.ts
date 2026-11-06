@@ -41,6 +41,7 @@ export function rowToResident(r: Row): Resident {
     status: r.status as Resident["status"],
     heartRate: num(r.heart_rate),
     lastMotionAt: num(r.last_motion_at),
+    motionState: (r.motion_state as Resident["motionState"]) ?? null,
     ...(r.is_guest ? { isGuest: true } : {}),
     createdAt: num(r.created_at),
   };
@@ -82,7 +83,7 @@ export async function getState(): Promise<StateResponse> {
   const [residents, nurses, alerts] = await Promise.all([
     sql`SELECT id, name, room, wing, language, can_speak, assigned_nurse_id, age, code_status,
                fall_risk, mobility, cognition, allergies, care_notes, emergency_contact, status,
-               heart_rate, last_motion_at, is_guest, created_at
+               heart_rate, last_motion_at, motion_state, is_guest, created_at
         FROM residents
         ORDER BY wing, (NULLIF(regexp_replace(room, '[^0-9]', '', 'g'), ''))::int NULLS LAST, room`,
     sql`SELECT id, name, role, wing, status FROM nurses ORDER BY id`,
