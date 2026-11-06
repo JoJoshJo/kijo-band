@@ -37,11 +37,13 @@ export default function Header({
   nursesOn,
   openCount,
   live,
+  actions,
 }: {
   logoSrc: string | null;
   nursesOn: number;
   openCount: number;
   live: "live" | "offline" | "connecting";
+  actions?: React.ReactNode;
 }) {
   return (
     <header className="flex items-center gap-5 border-b border-slate-800 px-5 py-3">
@@ -58,8 +60,9 @@ export default function Header({
       <span className="text-sm text-slate-400">
         Open alerts: <span className="font-mono text-white">{openCount}</span>
       </span>
+      <div className="ml-auto flex items-center gap-2">{actions}</div>
       <span
-        className={`ml-auto text-sm ${
+        className={`text-sm ${
           live === "live" ? "text-emerald-400" : live === "offline" ? "text-orange-400" : "text-slate-400"
         }`}
       >

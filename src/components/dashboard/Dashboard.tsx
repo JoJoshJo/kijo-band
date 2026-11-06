@@ -7,6 +7,8 @@ import AlertQueue from "./AlertQueue";
 import Header from "./Header";
 import { NurseBadge, NursePod } from "./NursePod";
 import PresenterPanel from "./PresenterPanel";
+import QrModal from "./QrModal";
+import ResetModal from "./ResetModal";
 import ResidentDrawer from "./ResidentDrawer";
 import { useEscalation } from "./useEscalation";
 import { useHeartRateDrift } from "./useHeartRateDrift";
@@ -33,6 +35,8 @@ export default function Dashboard({ logoSrc }: { logoSrc: string | null }) {
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showPresenter, setShowPresenter] = useState(true);
+  const [modal, setModal] = useState<"qr" | "reset" | null>(null);
+  const closeModal = useCallback(() => setModal(null), []);
 
   // P toggles the presenter phone frame (ignored while typing in a field).
   useEffect(() => {
@@ -67,6 +71,24 @@ export default function Dashboard({ logoSrc }: { logoSrc: string | null }) {
         nursesOn={nurses.length}
         openCount={alerts.filter((a) => a.status === "open").length}
         live={error ? "offline" : data ? "live" : "connecting"}
+        actions={
+          <>
+            <button
+              type="button"
+              onClick={() => setModal("qr")}
+              className="rounded border border-teal-600 px-3 py-1 text-sm font-semibold text-teal-300 hover:bg-teal-600/20"
+            >
+              QR · Join
+            </button>
+            <button
+              type="button"
+              onClick={() => setModal("reset")}
+              className="rounded border border-slate-700 px-3 py-1 text-sm text-slate-300 hover:bg-slate-800"
+            >
+              Reset demo
+            </button>
+          </>
+        }
       />
 
       <div
@@ -106,6 +128,9 @@ export default function Dashboard({ logoSrc }: { logoSrc: string | null }) {
 
         {showPresenter && <PresenterPanel residents={residents} />}
       </div>
+
+      {modal === "qr" && <QrModal onClose={closeModal} />}
+      {modal === "reset" && <ResetModal onClose={closeModal} onDone={refresh} />}
 
       {selected && (
         <ResidentDrawer
