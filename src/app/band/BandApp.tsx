@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import useSWR from "swr";
-import type { Alert, Language, Nurse, Resident, StateResponse } from "@/lib/types";
+import type { Alert, Language, Nurse, StateResponse } from "@/lib/types";
 import {
   ALERT_RATE_LIMIT_MS,
   HR_HIGH,
@@ -15,15 +15,15 @@ import {
 } from "@/lib/detection/alertRules";
 import { LANGUAGES, STRINGS, fill, nurseDisplayName, type BandStrings } from "./_lib/i18n";
 import { useMotionDetection } from "./_lib/useMotionDetection";
-import type { ActivityEvent, MotionState } from "@/lib/detection/activity";
 import { useVoiceTrigger } from "./_lib/useVoiceTrigger";
 import PulseCheck from "./PulseCheck";
+import TalkButton from "./TalkButton";
+import type { ActivityEvent } from "@/lib/detection/activity";
 import { promptInstall, useBandPwa, useInstallKind, useStoredResidentId } from "./_lib/pwa";
 
 const POLL_MS = 1000;
 const HEARTBEAT_MS = 2000;
 const FALL_CANCEL_S = 10;
-const ETA_MS = 2 * 60_000;
 const MEASURED_HOLD_MS = 60_000; // a camera pulse reading replaces the simulated HR for 1 min
 
 const fetcher = async (url: string): Promise<StateResponse> => {
@@ -84,12 +84,7 @@ function clamp(n: number, lo: number, hi: number) {
 }
 
 function Band({ residentId, embedded }: { residentId: string; embedded: boolean }) {
-  // Server clock offset so the ETA countdown isn't thrown off by a phone's clock.
-  const [clockOffset, setClockOffset] = useState(0);
-  const { data, error, mutate } = useSWR<StateResponse>("/api/state", fetcher, {
-    refreshInterval: POLL_MS,
-    onSuccess: (d) => setClockOffset(d.serverTime - Date.now()),
-  });
+  const { data, error, mutate } = useSWR<StateResponse>("/api/state", fetcher, { refreshInterval: POLL_MS });
   const resident = data?.residents.find((r) => r.id === residentId);
 
   const [langOverride, setLangOverride] = useState<Language | null>(null);
@@ -111,7 +106,6 @@ function Band({ residentId, embedded }: { residentId: string; embedded: boolean 
   const hrOverrideRef = useRef<number | null>(null);
   // Camera pulse check result: held for MEASURED_HOLD_MS so the nurse sees the real number.
   const measuredRef = useRef<{ bpm: number; until: number } | null>(null);
-  const [measuredUntil, setMeasuredUntil] = useState(0);
   const [pulseOpen, setPulseOpen] = useState(false);
   useEffect(() => {
     hrOverrideRef.current = hrOverride;
@@ -156,8 +150,8 @@ function Band({ residentId, embedded }: { residentId: string; embedded: boolean 
     setTimeout(() => setToast((cur) => (cur === msg ? null : cur)), 3000);
   }, []);
 
-  // "Back" hides the overlay for this alert only (it stays open); a newer alert shows the overlay again.
-  const [hiddenAlertId, setHiddenAlertId] = useState<string | null>(null);
+  // Help sheet (tap on the "Help is coming" banner): which alert it is open for.
+  const [sheetAlertId, setSheetAlertId] = useState<string | null>(null);
 
   /** "I'm OK – cancel": P2/P3 are resolved; a P1 is only flagged "resident says OK" (a nurse still checks). */
   const cancelAlert = useCallback(
@@ -188,7 +182,6 @@ function Band({ residentId, embedded }: { residentId: string; embedded: boolean 
     (bpm: number) => {
       const until = Date.now() + MEASURED_HOLD_MS;
       measuredRef.current = { bpm, until };
-      setMeasuredUntil(until);
       setHr(bpm);
       // Send now; the 2 s heartbeat keeps sending it while it is held.
       void fetch("/api/heartbeat", {
@@ -238,12 +231,14 @@ function Band({ residentId, embedded }: { residentId: string; embedded: boolean 
   // ── Real motion detection (phone only; the embedded frame uses the simulate buttons) ──
   const fallPendingRef = useRef(false);
   const startFallRef = useRef<(source: AlertSource) => void>(() => {});
-  // Live activity state (on-device). Inactivity / up-at-night are detected too; they become alerts once the
-  // alert types exist in the schema (Session A).
-  const [motionState, setMotionState] = useState<MotionState | null>(null);
-  const onActivity = useCallback((e: ActivityEvent) => {
-    if (e.type === "state") setMotionState(e.state);
-  }, []);
+  // Inactivity (P2) and "up at night" (P3) from the on-device activity monitor; state goes with the heartbeat.
+  const onActivity = useCallback(
+    (e: ActivityEvent) => {
+      if (e.type === "inactivity") void sendAlert("inactivity", "detector");
+      else if (e.type === "up_at_night") void sendAlert("up_at_night", "detector");
+    },
+    [sendAlert],
+  );
   const motion = useMotionDetection(started && !embedded, (e) => {
     if (fallPendingRef.current) return; // already asking "Are you OK?"
     if (e.type === "fall") {
@@ -315,12 +310,16 @@ function Band({ residentId, embedded }: { residentId: string; embedded: boolean 
     startFallRef.current = startFallCountdown;
   }, [fallDeadline, startFallCountdown]);
 
-  // ── Voice: continuous listening; only the sentence with a trigger word goes to /api/triage ──
+  // ── Voice: background listening (trigger words) + the Talk button (one sentence, no trigger word) ──
   const voice = useVoiceTrigger({
     enabled: started && !!resident?.canSpeak,
     lang,
     onTrigger: (sentence) => void postAlert("/api/triage", { transcript: sentence, language: lang }),
+    onTalk: (sentence) => void postAlert("/api/triage", { transcript: sentence, language: lang }),
   });
+  const onTalkTap = useCallback(() => {
+    if (!voice.talk()) showToast(STRINGS[lang].voiceUnavailable);
+  }, [voice, lang, showToast]);
 
   // ── Start Kijo (permissions must be requested inside the tap) ──
   const requestWakeLock = useCallback(async () => {
@@ -397,115 +396,85 @@ function Band({ residentId, embedded }: { residentId: string; embedded: boolean 
     );
   }
 
+  const helpComing = activeAlert != null;
+  const sheetAlert = activeAlert && activeAlert.id === sheetAlertId ? activeAlert : undefined;
+
   return (
     <>
-      <div className="relative flex flex-1 flex-col gap-5 p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
-        <style>{`@keyframes kijo-beat{0%,100%{transform:scale(1)}15%{transform:scale(1.25)}30%{transform:scale(1)}}`}</style>
-
-        {activeAlert && activeAlert.id === hiddenAlertId && fallSecondsLeft == null && (
-          <HelpBanner
-            t={t}
-            lang={lang}
-            alert={activeAlert}
-            nurse={nurse}
-            serverNow={now + clockOffset}
-            onOpen={() => setHiddenAlertId(null)}
-          />
+      <div className="relative flex flex-1 flex-col gap-4 p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+        {activeAlert && fallSecondsLeft == null && (
+          <AlertBanner t={t} lang={lang} alert={activeAlert} nurse={nurse} onOpen={() => setSheetAlertId(activeAlert.id)} />
         )}
 
-        {/* Header: name, room, status, live HR */}
-        <header className="flex items-start justify-between gap-3">
+        {/* Top: name + room (small), corner icons: language, pulse check */}
+        <header className="flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <StatusDot status={resident.status} />
-              <span className="truncate text-2xl font-semibold">{resident.name}</span>
-            </div>
-            <div className="mt-0.5 flex items-center gap-2 text-lg text-slate-400">
-              <span>
-                {t.room} {resident.room}
-              </span>
-              {motionState && <MotionChip t={t} state={motionState} />}
+            <div className="truncate text-xl font-semibold">{resident.name}</div>
+            <div className="text-base text-slate-400">
+              {t.room} {resident.room}
             </div>
           </div>
-          <div className="flex items-center gap-2 text-right" aria-live="off">
-            <span
-              className="inline-block text-3xl text-red-500"
-              style={hr ? { animation: `kijo-beat ${(60 / hr).toFixed(2)}s ease-in-out infinite` } : undefined}
-              aria-hidden
+          <div className="flex shrink-0 gap-2">
+            <button
+              onClick={() => setLangOverride(LANGUAGES[(LANGUAGES.indexOf(lang) + 1) % LANGUAGES.length])}
+              aria-label={t.language}
+              className="flex h-14 min-w-14 items-center justify-center rounded-2xl bg-slate-800 px-3 text-lg font-bold uppercase active:scale-95"
+            >
+              {lang}
+            </button>
+            <button
+              onClick={() => setPulseOpen(true)}
+              aria-label={t.checkPulse}
+              className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-800 text-2xl text-red-500 active:scale-95"
             >
               ♥
-            </span>
-            <span className="text-4xl font-bold tabular-nums">{hr ?? "--"}</span>
-            <span className="flex flex-col text-base leading-tight text-slate-400">
-              {t.bpm}
-              {measuredUntil > now && <span className="text-xs text-emerald-300">{t.measured}</span>}
-            </span>
+            </button>
           </div>
         </header>
 
-        {/* Giant HELP */}
+        {/* Center: tap and talk */}
         <div className="flex flex-1 items-center justify-center py-2">
-          <button
-            onClick={() => void sendAlert("need_help", "big_help")}
+          <TalkButton
+            color={helpComing ? "green" : "red"}
+            active={voice.talking}
+            label={voice.talking ? t.listening : t.tapToTalk}
             disabled={sending}
-            className="flex aspect-square w-[68vw] max-w-72 items-center justify-center rounded-full bg-red-600 text-6xl font-black tracking-wide shadow-[0_0_70px_rgba(220,38,38,0.55)] active:scale-95 disabled:opacity-60"
-          >
-            {t.help}
-          </button>
-        </div>
-
-        {/* Need buttons */}
-        <div className="grid grid-cols-2 gap-4">
-          <NeedButton emoji="😣" label={t.pain} disabled={sending} onClick={() => void sendAlert("need_pain")} />
-          <NeedButton emoji="🚻" label={t.bathroom} disabled={sending} onClick={() => void sendAlert("need_bathroom")} />
-          <NeedButton emoji="💧" label={t.water} disabled={sending} onClick={() => void sendAlert("need_water")} />
-          <NeedButton
-            emoji="🙋"
-            label={t.needHelp}
-            disabled={sending}
-            onClick={() => void sendAlert("need_help", "need_button")}
+            onClick={onTalkTap}
           />
         </div>
 
-        <button
-          onClick={() => setPulseOpen(true)}
-          className="flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-slate-800 text-xl font-semibold active:scale-95 active:bg-slate-700"
-        >
-          <span className="text-red-500" aria-hidden>
-            ♥
-          </span>
-          {t.checkPulse}
-        </button>
+        {/* Quick buttons */}
+        <div className="grid grid-cols-2 gap-4">
+          <NeedButton emoji="💧" label={t.water} disabled={sending} onClick={() => void sendAlert("need_water")} />
+          <NeedButton emoji="🚻" label={t.bathroom} disabled={sending} onClick={() => void sendAlert("need_bathroom")} />
+          <NeedButton emoji="😣" label={t.pain} disabled={sending} onClick={() => void sendAlert("need_pain")} />
+          <NeedButton
+            emoji="🆘"
+            label={t.needHelp}
+            danger
+            disabled={sending}
+            onClick={() => void sendAlert("need_help", "big_help")}
+          />
+        </div>
 
         <div className="min-h-7 text-center text-lg text-slate-300" aria-live="polite">
           {sending ? t.sending : toast ?? (error ? t.offline : "")}
         </div>
 
-        {voice.listening && (
-          <div className="flex items-center justify-center gap-2 text-lg text-teal-300" aria-live="polite">
-            <span className="inline-block h-2.5 w-2.5 animate-pulse rounded-full bg-teal-400" aria-hidden />
-            🎙️ {t.listening}
-          </div>
+        {sheetAlert && fallSecondsLeft == null && (
+          <HelpSheet
+            key={sheetAlert.id}
+            t={t}
+            alert={sheetAlert}
+            onClose={() => setSheetAlertId(null)}
+            onCancel={() => cancelAlert(sheetAlert.id)}
+          />
         )}
-
-        <LanguageSwitch lang={lang} onChange={setLangOverride} />
 
         {pulseOpen && <PulseCheck t={t} onClose={() => setPulseOpen(false)} onResult={onPulseResult} />}
 
         {fallSecondsLeft != null && (
           <FallCountdown t={t} secondsLeft={fallSecondsLeft} onCancel={() => setFallDeadline(null)} />
-        )}
-        {activeAlert && activeAlert.id !== hiddenAlertId && fallSecondsLeft == null && (
-          <HelpOverlay
-            key={activeAlert.id}
-            t={t}
-            lang={lang}
-            alert={activeAlert}
-            nurse={nurse}
-            serverNow={now + clockOffset}
-            onBack={() => setHiddenAlertId(activeAlert.id)}
-            onCancel={() => cancelAlert(activeAlert.id)}
-          />
         )}
       </div>
 
@@ -525,39 +494,27 @@ function Band({ residentId, embedded }: { residentId: string; embedded: boolean 
   );
 }
 
-/** Live on-device activity state: Moving / Still / Lying down. */
-function MotionChip({ t, state }: { t: BandStrings; state: MotionState }) {
-  const label = state === "moving" ? t.motionMoving : state === "lying" ? t.motionLying : t.motionStill;
-  const dot = state === "moving" ? "bg-teal-400 animate-pulse" : state === "lying" ? "bg-indigo-400" : "bg-slate-400";
-  return (
-    <span className="flex items-center gap-1.5 rounded-full bg-slate-800 px-2.5 py-0.5 text-base text-slate-200" aria-live="polite">
-      <span className={`inline-block h-2 w-2 rounded-full ${dot}`} aria-hidden />
-      {label}
-    </span>
-  );
-}
-
-function StatusDot({ status }: { status: Resident["status"] }) {
-  const color = status === "emergency" ? "bg-red-500" : status === "attention" ? "bg-yellow-400" : "bg-emerald-500";
-  return <span className={`inline-block h-3 w-3 shrink-0 rounded-full ${color}`} aria-label={status} />;
-}
-
 function NeedButton({
   emoji,
   label,
   onClick,
   disabled,
+  danger,
 }: {
   emoji: string;
   label: string;
   onClick: () => void;
   disabled: boolean;
+  /** The red 🆘 Help (P1) for residents who can't speak. */
+  danger?: boolean;
 }) {
   return (
     <button
       onClick={onClick}
       disabled={disabled}
-      className="flex h-28 flex-col items-center justify-center gap-1 rounded-3xl bg-slate-800 text-2xl font-semibold active:scale-95 active:bg-slate-700 disabled:opacity-60"
+      className={`flex h-28 flex-col items-center justify-center gap-1 rounded-3xl text-2xl font-semibold active:scale-95 disabled:opacity-60 ${
+        danger ? "bg-red-600 text-white active:bg-red-500" : "bg-slate-800 active:bg-slate-700"
+      }`}
     >
       <span className="text-4xl" aria-hidden>
         {emoji}
@@ -586,134 +543,89 @@ function LanguageSwitch({ lang, onChange }: { lang: Language; onChange: (l: Lang
   );
 }
 
-function formatMmSs(ms: number) {
-  const s = Math.ceil(ms / 1000);
-  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
-}
-
-/** Nurse ETA progress, 0 → 1 over the 2:00 ETA (the ring fills up and stays full at 0:00). */
-function etaProgress(alert: Alert, serverNow: number) {
-  return clamp((serverNow - alert.createdAt) / ETA_MS, 0, 1);
-}
-
-function EtaRing({ progress, done, children }: { progress: number; done: boolean; children: React.ReactNode }) {
-  const R = 88;
-  const C = 2 * Math.PI * R;
-  return (
-    <div className="relative h-56 w-56 shrink-0">
-      <svg viewBox="0 0 200 200" className="h-full w-full -rotate-90" aria-hidden>
-        <circle cx="100" cy="100" r={R} fill="none" strokeWidth="12" className="stroke-teal-900" />
-        <circle
-          cx="100"
-          cy="100"
-          r={R}
-          fill="none"
-          strokeWidth="12"
-          strokeLinecap="round"
-          strokeDasharray={C}
-          strokeDashoffset={done ? 0 : C * (1 - progress)}
-          className={`transition-[stroke-dashoffset] duration-1000 ease-linear ${done ? "stroke-emerald-400" : "stroke-teal-300"}`}
-        />
-      </svg>
-      <div className="absolute inset-0 flex items-center justify-center">{children}</div>
-    </div>
-  );
-}
-
-function CheckMark() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-24 w-24 text-emerald-400" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <path d="M5 12.5l4.5 4.5L19 7.5" />
-    </svg>
-  );
-}
-
-function HelpOverlay({
+/** Top notification while help is coming; tap to open the sheet. Hides itself once the alert is resolved. */
+function AlertBanner({
   t,
   lang,
   alert,
   nurse,
-  serverNow,
-  onBack,
-  onCancel,
+  onOpen,
 }: {
   t: BandStrings;
   lang: Language;
   alert: Alert;
   nurse?: Nurse;
-  serverNow: number;
-  onBack: () => void;
+  onOpen: () => void;
+}) {
+  const nurseName = nurse ? nurseDisplayName(nurse.name, lang) : "";
+  const text =
+    alert.status === "acknowledged" && nurseName
+      ? fill(t.onTheWay, { nurse: nurseName })
+      : [t.helpComing, nurseName].filter(Boolean).join(" · ");
+  return (
+    <button
+      onClick={onOpen}
+      className="-mx-5 -mt-5 flex min-h-16 items-center justify-center gap-3 bg-green-600 px-4 text-xl font-semibold text-white active:bg-green-500"
+    >
+      <span className="h-3 w-3 shrink-0 animate-pulse rounded-full bg-white" aria-hidden />
+      <span className="truncate">{text}</span>
+    </button>
+  );
+}
+
+/** Small bottom sheet from the banner: reassurance + "I'm OK – cancel" (P1: flagged, never resolved). */
+function HelpSheet({
+  t,
+  alert,
+  onClose,
+  onCancel,
+}: {
+  t: BandStrings;
+  alert: Alert;
+  onClose: () => void;
   onCancel: () => Promise<boolean>;
 }) {
   const [confirming, setConfirming] = useState(false);
-  const [cancelling, setCancelling] = useState(false);
-  const nurseName = nurse ? nurseDisplayName(nurse.name, lang) : "";
-  const acknowledged = alert.status === "acknowledged";
-  const remaining = alert.createdAt + ETA_MS - serverNow;
+  const [busy, setBusy] = useState(false);
   const flaggedOk = alert.priority === 1 && residentSaysOk(alert.summary);
+  const message = flaggedOk
+    ? t.nurseWillCheck
+    : alert.type === "voice" && alert.patientMessage
+      ? alert.patientMessage
+      : t.stayCalm;
 
   async function confirmCancel() {
-    setCancelling(true);
-    await onCancel();
-    setCancelling(false);
+    setBusy(true);
+    const ok = await onCancel();
+    setBusy(false);
     setConfirming(false);
+    if (ok && alert.priority !== 1) onClose();
   }
 
   return (
-    <div
-      role="alertdialog"
-      aria-live="assertive"
-      aria-label={t.helpComing}
-      className="absolute inset-0 z-20 flex flex-col items-center overflow-y-auto bg-teal-950 px-6 pt-8 pb-[max(1.5rem,env(safe-area-inset-bottom))] text-center"
-    >
-      <div className="flex w-full flex-1 flex-col items-center justify-center gap-5">
-        <h1 className="text-4xl font-bold leading-tight">
-          {acknowledged && nurseName ? fill(t.onTheWay, { nurse: nurseName }) : t.helpComing}
-        </h1>
-
-        <EtaRing progress={etaProgress(alert, serverNow)} done={acknowledged}>
-          {acknowledged ? (
-            <CheckMark />
-          ) : (
-            <span className="text-6xl font-bold tabular-nums">{formatMmSs(Math.max(0, remaining))}</span>
-          )}
-        </EtaRing>
-
-        {!acknowledged && (
-          <div className="flex flex-col items-center gap-1">
-            {nurseName && <div className="text-3xl font-semibold text-teal-100">{nurseName}</div>}
-            {remaining <= 0 && <div className="text-xl text-teal-200">{t.anyMoment}</div>}
-          </div>
-        )}
-
-        {alert.type === "voice" && alert.transcript && (
-          <p className="max-w-sm text-xl italic text-teal-100/70">“{alert.transcript}”</p>
-        )}
-        <p className="max-w-sm text-2xl text-teal-50">
-          {flaggedOk
-            ? t.nurseWillCheck
-            : alert.type === "voice" && alert.patientMessage
-              ? alert.patientMessage
-              : t.stayCalm}
-        </p>
-      </div>
-
-      <div className="mt-6 flex w-full max-w-sm flex-col gap-3">
+    <div className="fixed inset-0 z-20 flex flex-col justify-end bg-black/60" onClick={onClose}>
+      <div
+        role="dialog"
+        aria-label={t.helpComing}
+        onClick={(e) => e.stopPropagation()}
+        className="flex flex-col gap-4 rounded-t-3xl bg-slate-900 p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] text-center"
+      >
+        <p className="text-2xl leading-snug">{message}</p>
         {confirming ? (
           <>
             <div className="text-2xl font-semibold">{t.cancelConfirm}</div>
             <div className="grid grid-cols-2 gap-3">
               <button
                 onClick={() => void confirmCancel()}
-                disabled={cancelling}
+                disabled={busy}
                 className="min-h-16 rounded-2xl bg-white text-2xl font-bold text-black active:scale-95 disabled:opacity-60"
               >
                 {t.yes}
               </button>
               <button
                 onClick={() => setConfirming(false)}
-                disabled={cancelling}
-                className="min-h-16 rounded-2xl border-2 border-teal-200 text-2xl font-bold text-white active:scale-95 disabled:opacity-60"
+                disabled={busy}
+                className="min-h-16 rounded-2xl border-2 border-slate-500 text-2xl font-bold active:scale-95 disabled:opacity-60"
               >
                 {t.no}
               </button>
@@ -730,48 +642,15 @@ function HelpOverlay({
               </button>
             )}
             <button
-              onClick={onBack}
-              className="min-h-16 rounded-2xl border-2 border-teal-200 text-2xl font-bold text-white active:scale-95"
+              onClick={onClose}
+              className="min-h-16 rounded-2xl border-2 border-slate-500 text-2xl font-bold active:scale-95"
             >
-              {t.back}
+              {t.close}
             </button>
           </>
         )}
       </div>
     </div>
-  );
-}
-
-/** Slim banner on the main screen after "Back": "Help is coming · Ana · 1:42". Tap to reopen the overlay. */
-function HelpBanner({
-  t,
-  lang,
-  alert,
-  nurse,
-  serverNow,
-  onOpen,
-}: {
-  t: BandStrings;
-  lang: Language;
-  alert: Alert;
-  nurse?: Nurse;
-  serverNow: number;
-  onOpen: () => void;
-}) {
-  const nurseName = nurse ? nurseDisplayName(nurse.name, lang).replace(/^Nurse\s+/, "") : "";
-  const remaining = alert.createdAt + ETA_MS - serverNow;
-  const text =
-    alert.status === "acknowledged" && nurseName
-      ? fill(t.onTheWay, { nurse: nurseName })
-      : [t.helpComing, nurseName, remaining > 0 ? formatMmSs(remaining) : t.anyMoment].filter(Boolean).join(" · ");
-  return (
-    <button
-      onClick={onOpen}
-      className="-mx-5 -mt-5 flex min-h-14 items-center justify-center gap-2 bg-teal-500 px-4 text-lg font-semibold text-black active:bg-teal-400"
-    >
-      <span className="h-2.5 w-2.5 shrink-0 animate-pulse rounded-full bg-black" aria-hidden />
-      <span className="truncate tabular-nums">{text}</span>
-    </button>
   );
 }
 

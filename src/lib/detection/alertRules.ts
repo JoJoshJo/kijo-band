@@ -1,6 +1,7 @@
 // Rule-based alert classification for non-voice alerts (spec section 4 + 6).
 // Shared by the band (client) and /api/alert (server). The server is the source of truth for priority.
 import type { AlertPriority, AlertType } from "@/lib/types";
+import { INACTIVITY_MS } from "./activity";
 
 /** Alert types the band can create directly. `voice` goes through /api/triage instead. */
 export const BAND_ALERT_TYPES = [
@@ -11,6 +12,8 @@ export const BAND_ALERT_TYPES = [
   "need_water",
   "need_help",
   "vitals",
+  "inactivity",
+  "up_at_night",
 ] as const satisfies readonly AlertType[];
 export type BandAlertType = (typeof BAND_ALERT_TYPES)[number];
 
@@ -37,9 +40,11 @@ export function priorityFor(type: BandAlertType, source: AlertSource | undefined
     case "need_help":
       return source === "big_help" ? 1 : 2;
     case "need_pain":
+    case "inactivity":
       return 2;
     case "need_bathroom":
     case "need_water":
+    case "up_at_night":
       return 3;
   }
 }
@@ -68,6 +73,10 @@ export function summaryFor(
       return "Needs bathroom assistance";
     case "need_water":
       return "Asks for water";
+    case "inactivity":
+      return `No movement for ${Math.round(INACTIVITY_MS / 60_000)} min${sim}`;
+    case "up_at_night":
+      return `Resident is up — check before a fall${sim}`;
   }
 }
 
