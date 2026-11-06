@@ -25,11 +25,13 @@ export function NursePod({
   nurse,
   residents,
   alerts,
+  heartRateOf,
   onSelect,
 }: {
   nurse: Nurse;
   residents: Resident[];
   alerts: Alert[];
+  heartRateOf: (r: Resident) => number;
   onSelect: (id: string) => void;
 }) {
   const ids = new Set(residents.map((r) => r.id));
@@ -49,7 +51,13 @@ export function NursePod({
       </header>
       <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
         {residents.map((r) => (
-          <ResidentTile key={r.id} resident={r} alert={topAlertFor(alerts, r.id)} onSelect={onSelect} />
+          <ResidentTile
+            key={r.id}
+            resident={r}
+            heartRate={heartRateOf(r)}
+            alert={topAlertFor(alerts, r.id)}
+            onSelect={onSelect}
+          />
         ))}
       </div>
     </section>

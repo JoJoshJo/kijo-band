@@ -41,12 +41,14 @@ const FALL_RISK_STYLE: Record<Resident["fallRisk"], string> = {
 
 export default function ResidentDrawer({
   resident,
+  heartRate,
   nurses,
   alerts,
   now,
   onClose,
 }: {
   resident: Resident;
+  heartRate: number; // displayed value (may include client-side drift)
   nurses: Nurse[];
   alerts: Alert[];
   now: number | null;
@@ -104,7 +106,7 @@ export default function ResidentDrawer({
         <Section title="LIVE">
           <div className="flex items-center gap-4">
             <span className={`font-mono text-3xl ${top ? PRIORITY[top.priority].text : "text-emerald-400"}`}>
-              {resident.heartRate}
+              {heartRate}
               <span className="ml-1 text-sm text-slate-500">bpm</span>
             </span>
             <div className="flex-1">

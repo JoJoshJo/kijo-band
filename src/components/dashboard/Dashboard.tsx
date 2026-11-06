@@ -2,12 +2,13 @@
 
 import { useCallback, useState } from "react";
 import useSWR from "swr";
-import type { StateResponse } from "@/lib/types";
+import type { Resident, StateResponse } from "@/lib/types";
 import AlertQueue from "./AlertQueue";
 import Header from "./Header";
 import { NurseBadge, NursePod } from "./NursePod";
 import ResidentDrawer from "./ResidentDrawer";
 import { useEscalation } from "./useEscalation";
+import { useHeartRateDrift } from "./useHeartRateDrift";
 import { useNow } from "./util";
 
 const fetcher = async (url: string): Promise<StateResponse> => {
@@ -18,9 +19,13 @@ const fetcher = async (url: string): Promise<StateResponse> => {
 
 export default function Dashboard({ logoSrc }: { logoSrc: string | null }) {
   const [skew, setSkew] = useState(0); // serverTime - clientTime, so timers match the DB clock
+  const { track, displayHr } = useHeartRateDrift();
   const { data, error, mutate } = useSWR<StateResponse>("/api/state", fetcher, {
     refreshInterval: 1000,
-    onSuccess: (d) => setSkew(d.serverTime - Date.now()),
+    onSuccess: (d) => {
+      setSkew(d.serverTime - Date.now());
+      track(d.residents);
+    },
   });
   const clientNow = useNow(500);
   const now = clientNow == null ? null : clientNow + skew;
@@ -33,6 +38,7 @@ export default function Dashboard({ logoSrc }: { logoSrc: string | null }) {
   const nurses = data?.nurses ?? [];
   const alerts = data?.alerts ?? [];
   useEscalation(alerts, now, refresh);
+  const heartRateOf = useCallback((r: Resident) => displayHr(r, clientNow), [displayHr, clientNow]);
 
   const selected = selectedId ? residents.find((r) => r.id === selectedId) : undefined;
 
@@ -64,6 +70,7 @@ export default function Dashboard({ logoSrc }: { logoSrc: string | null }) {
               nurse={n}
               residents={residents.filter((r) => r.assignedNurseId === n.id)}
               alerts={alerts}
+              heartRateOf={heartRateOf}
               onSelect={setSelectedId}
             />
           ))}
@@ -83,7 +90,14 @@ export default function Dashboard({ logoSrc }: { logoSrc: string | null }) {
       </div>
 
       {selected && (
-        <ResidentDrawer resident={selected} nurses={nurses} alerts={alerts} now={now} onClose={closeDrawer} />
+        <ResidentDrawer
+          resident={selected}
+          heartRate={heartRateOf(selected)}
+          nurses={nurses}
+          alerts={alerts}
+          now={now}
+          onClose={closeDrawer}
+        />
       )}
     </div>
   );
