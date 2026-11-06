@@ -73,9 +73,9 @@ export default function JoinForm() {
 
   if (status.kind === "full") {
     return (
-      <div className="mt-10 w-full max-w-sm rounded-2xl border border-slate-700 bg-slate-900 p-6 text-center">
+      <div className="mt-10 w-full max-w-sm rounded-btn border border-line-2 bg-surface p-6 text-center">
         <div className="text-2xl font-semibold">Demo is full</div>
-        <p className="mt-2 text-lg text-slate-400">All 15 guest rooms are taken. Watch the big screen instead!</p>
+        <p className="mt-2 text-xl text-muted">All 15 guest rooms are taken. Watch the big screen instead!</p>
       </div>
     );
   }
@@ -84,19 +84,19 @@ export default function JoinForm() {
   return (
     <form onSubmit={onSubmit} className="mt-8 flex w-full max-w-sm flex-col gap-6">
       <label className="flex flex-col gap-2">
-        <span className="text-lg text-slate-300">Your name (optional)</span>
+        <span className="text-xl text-muted">Your name (optional)</span>
         <input
           value={name}
           onChange={(e) => setName(e.target.value.slice(0, NAME_MAX))}
           maxLength={NAME_MAX}
           autoComplete="given-name"
           placeholder="Guest"
-          className="rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-xl text-white outline-none placeholder:text-slate-600 focus:border-teal-400"
+          className="rounded-btn border border-line-2 bg-surface px-4 py-3 text-xl text-ink outline-none placeholder:text-muted focus:border-brand"
         />
       </label>
 
       <fieldset className="flex flex-col gap-2">
-        <legend className="mb-2 text-lg text-slate-300">Language</legend>
+        <legend className="mb-2 text-xl text-muted">Language</legend>
         <div className="grid grid-cols-3 gap-2">
           {LANG_OPTIONS.map((o) => (
             <button
@@ -104,8 +104,8 @@ export default function JoinForm() {
               type="button"
               aria-pressed={lang === o.code}
               onClick={() => setLanguage(o.code)}
-              className={`rounded-xl border px-2 py-3 text-lg font-medium ${
-                lang === o.code ? "border-teal-400 bg-teal-500 text-black" : "border-slate-700 bg-slate-900 text-white"
+              className={`rounded-btn border px-2 py-3 text-xl font-medium ${
+                lang === o.code ? "border-brand bg-brand text-bg" : "border-line-2 bg-surface text-ink"
               }`}
             >
               {o.label}
@@ -117,11 +117,11 @@ export default function JoinForm() {
       <button
         type="submit"
         disabled={joining}
-        className="mt-2 rounded-full bg-teal-500 py-4 text-2xl font-bold text-black shadow-[0_0_40px_rgba(20,184,166,0.4)] active:scale-95 disabled:opacity-60"
+        className="mt-2 rounded-full bg-brand py-4 text-2xl font-bold text-bg shadow-[0_0_40px_rgba(43,179,163,0.35)] active:scale-95 disabled:opacity-60"
       >
         {joining ? "Joining…" : "Get my band"}
       </button>
-      {status.kind === "error" && <p className="text-center text-lg text-red-400">{status.message}</p>}
+      {status.kind === "error" && <p className="text-center text-xl text-warn">{status.message}</p>}
     </form>
   );
 }
