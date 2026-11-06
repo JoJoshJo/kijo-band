@@ -1,5 +1,6 @@
 import "server-only";
 import { randomBytes } from "node:crypto";
+import { after } from "next/server";
 import { getSql, rowToAlert } from "@/lib/db";
 import { sendNtfy } from "@/lib/notify";
 import { ALERT_RATE_LIMIT_MS } from "@/lib/detection/alertRules";
@@ -24,7 +25,7 @@ export type CreateAlertResult =
 
 /**
  * The single path every alert takes (/api/alert and /api/triage): rate-limit guard + insert +
- * resident status update in one parameterized statement, then the ntfy push.
+ * resident status update in one parameterized statement, then the ntfy push (after the response).
  * Status rule (shared with Session A): any open/acknowledged P1 → emergency, else attention.
  */
 export async function createAlert(input: NewAlert): Promise<CreateAlertResult> {
@@ -82,7 +83,9 @@ export async function createAlert(input: NewAlert): Promise<CreateAlertResult> {
   }
 
   const alert = rowToAlert(rows[0]);
-  await sendNtfy({ alert, resident: { name: resident.name as string, room: resident.room as string }, ackToken });
+  // Push to nurse phones after the response is sent, so the band and dashboard aren't slowed by ntfy.
+  const pushResident = { name: resident.name as string, room: resident.room as string };
+  after(() => sendNtfy({ alert, resident: pushResident, ackToken }));
   return { kind: "created", alert };
 }
 
