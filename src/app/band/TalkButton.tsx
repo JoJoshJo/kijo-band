@@ -29,12 +29,15 @@ export default function TalkButton({
   color,
   active,
   label,
+  hint,
   disabled,
   onClick,
 }: {
   color: TalkColor;
   active: boolean;
   label: string;
+  /** Second line under the label, e.g. "or say “Kijo”" */
+  hint?: string;
   disabled?: boolean;
   onClick: () => void;
 }) {
@@ -75,8 +78,9 @@ export default function TalkButton({
           </span>
         )}
       </button>
-      <div className="text-3xl font-bold" aria-live="polite">
-        {label}
+      <div className="flex flex-col items-center" aria-live="polite">
+        <span className="text-3xl font-bold">{label}</span>
+        {hint && <span className="text-xl text-slate-300">{hint}</span>}
       </div>
     </div>
   );

@@ -84,6 +84,9 @@ export interface BandStrings {
   voiceDictationOff: string;
   voiceMicBlocked: string;
   motionDenied: string;
+  /** Wake word: hint under the Talk button, and the spoken answer to "Kijo" alone */
+  orSayKijo: string;
+  wakeYes: string;
 }
 
 /** Each language's own name (shown and announced the same in every UI language). */
@@ -160,6 +163,8 @@ export const STRINGS: Record<Language, BandStrings> = {
     voiceDictationOff: "Turn on Siri & Dictation in Settings to use voice.",
     voiceMicBlocked: "Allow the microphone to use voice.",
     motionDenied: "Allow Motion & Orientation to detect falls",
+    orSayKijo: "or say “Kijo”",
+    wakeYes: "Yes?",
   },
   fr: {
     loading: "Chargement…",
@@ -231,6 +236,8 @@ export const STRINGS: Record<Language, BandStrings> = {
     voiceDictationOff: "Activez Siri et Dictée dans Réglages pour utiliser la voix.",
     voiceMicBlocked: "Autorisez le micro pour utiliser la voix.",
     motionDenied: "Autorisez Mouvement et orientation pour détecter les chutes",
+    orSayKijo: "ou dites « Kijo »",
+    wakeYes: "Oui ?",
   },
   es: {
     loading: "Cargando…",
@@ -302,6 +309,8 @@ export const STRINGS: Record<Language, BandStrings> = {
     voiceDictationOff: "Active Siri y Dictado en Ajustes para usar la voz.",
     voiceMicBlocked: "Permita el micrófono para usar la voz.",
     motionDenied: "Permita Movimiento y orientación para detectar caídas",
+    orSayKijo: "o diga «Kijo»",
+    wakeYes: "¿Sí?",
   },
 };
 

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Language } from "@/lib/types";
-import { MAX_TRANSCRIPT_CHARS, containsTrigger } from "@/lib/detection/voice";
+import { MAX_TRANSCRIPT_CHARS, backgroundIntent, findWakeWord } from "@/lib/detection/voice";
 import { SPEECH_LANG } from "./speechLang";
 
 // Minimal Web Speech API typings (not in TypeScript's DOM lib).
@@ -46,6 +46,7 @@ const TALK_TIMEOUT_MS = 10_000; // tap-and-talk gives up after this with no fina
 const START_WATCHDOG_MS = 4000; // no `start` event by then → the engine silently refused (iOS home-screen app)
 const MAX_QUICK_FAILS = 3; // background restarts that end without ever starting → ask for a tap
 const RESTART_DELAY_MS = 300;
+const WAKE_CAPTURE_MS = 8000; // after "Kijo" alone + "Yes?": the next utterance within this is the request
 
 function getRecognitionCtor(): SpeechRecognitionCtor | null {
   if (typeof window === "undefined") return null;
@@ -136,8 +137,10 @@ function classify(reason: string): VoiceProblem {
  * is passed on. Chrome/Edge recognise on the device where the model is installed (processLocally);
  * iPhone Safari uses webkitSpeechRecognition.
  *
- * - Background (while `enabled` and not `paused`): continuous; a FINAL sentence with a trigger word →
- *   onTrigger. Starts by itself where the platform allows (Chrome, Android, desktop) and restarts after
+ * - Background (while `enabled` and not `paused`): continuous. A FINAL sentence goes to onTrigger when
+ *   it has an emergency word ("help", "au secours", "me caí"…), or what follows the wake word "Kijo"
+ *   ("Kijo, I need water" → "I need water"). "Kijo" alone → onWake (chime + "Yes?") and the NEXT
+ *   utterance within 8 s is taken (`capturing`). Everything else is ignored. Starts by itself where the platform allows (Chrome, Android, desktop) and restarts after
  *   every `end`. iOS needs a tap to start: call `arm()` from inside the tap (Start Kijo, a language
  *   change, "Tap to resume listening"). If an automatic restart is refused, `needsTap` turns true.
  * - Tap and talk (`talk()`, call it from the tap): pauses background, starts the one-sentence recognizer
@@ -151,6 +154,7 @@ export function useVoiceTrigger({
   lang,
   onTrigger,
   onTalk,
+  onWake,
 }: {
   enabled: boolean;
   /** e.g. while the band is speaking, so it doesn't hear itself */
@@ -158,9 +162,13 @@ export function useVoiceTrigger({
   lang: Language;
   onTrigger: (sentence: string) => void;
   onTalk?: (sentence: string) => void;
+  /** "Kijo" heard with nothing after it: acknowledge (chime + "Yes?"); the next utterance is captured. */
+  onWake?: () => void;
 }): {
   listening: boolean;
   talking: boolean;
+  /** Waiting for the request after "Kijo" */
+  capturing: boolean;
   needsTap: boolean;
   problem: VoiceProblem | null;
   /** Start background listening now (call inside a tap). Optional new language (language change tap). */
@@ -172,8 +180,11 @@ export function useVoiceTrigger({
   const [talking, setTalking] = useState(false);
   const [needsTap, setNeedsTap] = useState(false);
   const [problem, setProblem] = useState<VoiceProblem | null>(null);
+  const [capturing, setCapturing] = useState(false);
 
-  const cb = useRef({ onTrigger, onTalk });
+  const cb = useRef({ onTrigger, onTalk, onWake });
+  const captureUntil = useRef<number | null>(null);
+  const captureTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const want = useRef({ enabled, paused, lang });
   const bg = useRef<SpeechRecognitionLike | null>(null);
   const activeRec = useRef<SpeechRecognitionLike | null>(null); // the background recognizer that is listening
@@ -185,8 +196,54 @@ export function useVoiceTrigger({
   const startRef = useRef<(fromGesture: boolean, l?: Language) => void>(() => {});
 
   useEffect(() => {
-    cb.current = { onTrigger, onTalk };
-  }, [onTrigger, onTalk]);
+    cb.current = { onTrigger, onTalk, onWake };
+  }, [onTrigger, onTalk, onWake]);
+
+  // ── Wake word capture window ──
+  const endCapture = useCallback(() => {
+    if (captureTimer.current) clearTimeout(captureTimer.current);
+    captureTimer.current = null;
+    captureUntil.current = null;
+    setCapturing(false);
+  }, []);
+  const armCaptureTimer = useCallback(() => {
+    if (captureTimer.current) clearTimeout(captureTimer.current);
+    captureUntil.current = Date.now() + WAKE_CAPTURE_MS;
+    captureTimer.current = setTimeout(() => {
+      vlog("wake: no request within 8 s");
+      endCapture();
+    }, WAKE_CAPTURE_MS);
+  }, [endCapture]);
+
+  /** One final sentence from background listening (lang = the recognizer's language). */
+  const heard = useCallback(
+    (sentence: string, l: Language) => {
+      if (!sentence) return;
+      if (captureUntil.current != null && Date.now() <= captureUntil.current) {
+        const text = findWakeWord(sentence)?.command ?? sentence; // "Kijo" said again → wait for the rest
+        if (!text) return;
+        vlog("wake: request captured");
+        endCapture();
+        cb.current.onTrigger(text);
+        return;
+      }
+      const intent = backgroundIntent(sentence, l);
+      if (!intent) return;
+      if (intent.kind === "emergency") {
+        vlog("emergency words");
+        cb.current.onTrigger(intent.text);
+      } else if (intent.command) {
+        vlog("wake word + request");
+        cb.current.onTrigger(intent.command);
+      } else {
+        vlog("wake word alone → Yes?");
+        setCapturing(true);
+        armCaptureTimer();
+        cb.current.onWake?.();
+      }
+    },
+    [armCaptureTimer, endCapture],
+  );
 
   const halt = useCallback((fromGesture: boolean, reason: string) => {
     // A refused AUTOMATIC restart after listening worked before (iOS: no gesture) → one tap re-arms.
@@ -261,7 +318,7 @@ export function useVoiceTrigger({
             continue;
           }
           interim = "";
-          if (sentence && containsTrigger(sentence, l)) cb.current.onTrigger(sentence);
+          heard(sentence, l);
         }
       };
       rec.onerror = (e) => {
@@ -276,7 +333,7 @@ export function useVoiceTrigger({
           setListening(false);
         }
         if (bg.current !== rec) return; // stopped on purpose
-        if (interim && containsTrigger(interim, l)) cb.current.onTrigger(interim); // ended without a final
+        if (interim) heard(interim, l); // ended without a final result
         interim = "";
         bg.current = null;
         if (blocked) return halt(fromGesture, blocked);
@@ -295,7 +352,7 @@ export function useVoiceTrigger({
         halt(fromGesture, "start-threw");
       }
     },
-    [halt, stopBackground],
+    [halt, stopBackground, heard],
   );
   useEffect(() => {
     startRef.current = startBackground;
@@ -323,6 +380,7 @@ export function useVoiceTrigger({
     const Ctor = getRecognitionCtor();
     if (!Ctor) return false;
     if (talkRec.current) return true;
+    endCapture(); // the tap replaces a pending "Kijo … Yes?"
     stopBackground();
     const tag = SPEECH_LANG[want.current.lang];
     const rec = new Ctor();
@@ -364,7 +422,7 @@ export function useVoiceTrigger({
           continue;
         }
         if (sentence && !done) {
-          cb.current.onTalk?.(sentence);
+          cb.current.onTalk?.(findWakeWord(sentence)?.command || sentence); // "Kijo, water" → "water"
           finish();
           return;
         }
@@ -407,13 +465,18 @@ export function useVoiceTrigger({
       return true;
     }
     return true;
-  }, [stopBackground]);
+  }, [stopBackground, endCapture]);
 
   // Check (and quietly install) the on-device model for the current language.
   useEffect(() => {
     const Ctor = getRecognitionCtor();
     if (Ctor) void checkOnDevice(Ctor, SPEECH_LANG[lang]);
   }, [lang]);
+
+  // "Yes?" is spoken (paused) right after the wake word: the 8 s start once the band has finished talking.
+  useEffect(() => {
+    if (!paused && captureUntil.current != null) armCaptureTimer();
+  }, [paused, armCaptureTimer]);
 
   // Background: follow enabled / paused / talking / language. Starts on its own where allowed.
   useEffect(() => {
@@ -432,6 +495,7 @@ export function useVoiceTrigger({
       const r = bg.current;
       if (r) r.onend = null;
       stopBackground();
+      if (captureTimer.current) clearTimeout(captureTimer.current);
       const t = talkRec.current;
       if (t) {
         t.onresult = t.onerror = t.onend = null;
@@ -445,5 +509,5 @@ export function useVoiceTrigger({
     [stopBackground],
   );
 
-  return { listening, talking, needsTap, problem, arm, talk };
+  return { listening, talking, capturing, needsTap, problem, arm, talk };
 }

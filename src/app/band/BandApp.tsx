@@ -15,7 +15,7 @@ import {
 } from "@/lib/detection/alertRules";
 import { LANGUAGES, LANGUAGE_NAMES, STRINGS, fill, nurseDisplayName, type BandStrings } from "./_lib/i18n";
 import { FOCUS, useLargeText } from "./_lib/a11y";
-import { useSpeak, vibrateSent } from "./_lib/useSpeak";
+import { chime, useSpeak, vibrateSent } from "./_lib/useSpeak";
 import { useMotionDetection } from "./_lib/useMotionDetection";
 import { useVoiceTrigger, type VoiceProblem } from "./_lib/useVoiceTrigger";
 import PulseCheck from "./PulseCheck";
@@ -349,6 +349,11 @@ function Band({ residentId, embedded }: { residentId: string; embedded: boolean 
     lang,
     onTrigger: (sentence) => void postAlert("/api/triage", { transcript: sentence, language: lang }),
     onTalk: (sentence) => void postAlert("/api/triage", { transcript: sentence, language: lang }),
+    // "Kijo" alone: chime, then "Yes?" in the resident's language; the next sentence is the request.
+    onWake: () => {
+      chime();
+      setTimeout(() => speak(STRINGS[lang].wakeYes), 350);
+    },
   });
   const onTalkTap = useCallback(() => {
     stopSpeaking(); // the resident wants to talk: stop talking to them
@@ -500,8 +505,9 @@ function Band({ residentId, embedded }: { residentId: string; embedded: boolean 
         <div className="flex flex-1 items-center justify-center py-2">
           <TalkButton
             color={helpComing ? "green" : "red"}
-            active={voice.talking}
-            label={voice.talking ? t.listening : t.tapToTalk}
+            active={voice.talking || voice.capturing}
+            label={voice.talking || voice.capturing ? t.listening : t.tapToTalk}
+            hint={canSpeak && !voice.problem ? t.orSayKijo : undefined}
             disabled={sending}
             onClick={onTalkTap}
           />
