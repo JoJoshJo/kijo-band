@@ -41,7 +41,7 @@ export default function Dashboard({ logoSrc }: { logoSrc: string | null }) {
   const [modal, setModal] = useState<"qr" | "reset" | "report" | null>(null);
   const closeModal = useCallback(() => setModal(null), []);
 
-  useViewShortcut("nurse");
+  useViewShortcut("charge");
   const refresh = useCallback(() => void mutate(), [mutate]);
   const closeDrawer = useCallback(() => setSelectedId(null), []);
 
@@ -62,9 +62,17 @@ export default function Dashboard({ logoSrc }: { logoSrc: string | null }) {
     <div className="flex h-screen flex-col bg-[#070b14] text-slate-100">
       <Header
         logoSrc={logoSrc}
-        view="nurse"
-        nursesOn={nurses.length}
-        openCount={alerts.filter((a) => a.status === "open").length}
+        view="charge"
+        info={
+          <>
+            <span className="text-sm text-slate-400">
+              Nurses on: <span className="text-white">{nurses.length}</span>
+            </span>
+            <span className="text-sm text-slate-400">
+              Open alerts: <span className="font-mono text-white">{alerts.filter((a) => a.status === "open").length}</span>
+            </span>
+          </>
+        }
         live={error ? "offline" : data ? "live" : "connecting"}
         actions={
           <>
