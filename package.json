@@ -11,6 +11,7 @@
     "demo:alerts": "tsx --env-file-if-exists=.env.local scripts/demo-alerts.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^1.6.0",
     "@neondatabase/serverless": "^1.2.0",
     "next": "16.4.5",
     "qrcode": "^1.5.4",

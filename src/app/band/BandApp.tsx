@@ -13,8 +13,11 @@ import {
   type BandAlertType,
 } from "@/lib/detection/alertRules";
 import { LANGUAGES, STRINGS, fill, nurseDisplayName, type BandStrings } from "./_lib/i18n";
+import { useMotionDetection } from "./_lib/useMotionDetection";
+import { useVoiceTrigger } from "./_lib/useVoiceTrigger";
 
 const POLL_MS = 1000;
+const HEARTBEAT_MS = 2000;
 const FALL_CANCEL_S = 10;
 const ETA_MS = 2 * 60_000;
 
@@ -114,8 +117,9 @@ function Band({ residentId, embedded }: { residentId: string; embedded: boolean 
     setTimeout(() => setToast((cur) => (cur === msg ? null : cur)), 3000);
   }, []);
 
-  const sendAlert = useCallback(
-    async (type: BandAlertType, source?: AlertSource) => {
+  /** POST to /api/alert or /api/triage with the shared 10s client-side limit and error toasts. */
+  const postAlert = useCallback(
+    async (url: "/api/alert" | "/api/triage", body: Record<string, unknown>) => {
       if (Date.now() - lastSentRef.current < ALERT_RATE_LIMIT_MS) {
         showToast(STRINGS[lang].waitMoment);
         return;
@@ -123,10 +127,10 @@ function Band({ residentId, embedded }: { residentId: string; embedded: boolean 
       lastSentRef.current = Date.now();
       setSending(true);
       try {
-        const res = await fetch("/api/alert", {
+        const res = await fetch(url, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ residentId, type, source, heartRate: hrRef.current ?? undefined }),
+          body: JSON.stringify({ residentId, heartRate: hrRef.current ?? undefined, ...body }),
         });
         if (res.status === 429) showToast(STRINGS[lang].waitMoment);
         else if (!res.ok) {
@@ -143,6 +147,38 @@ function Band({ residentId, embedded }: { residentId: string; embedded: boolean 
     },
     [lang, mutate, residentId, showToast],
   );
+  const sendAlert = useCallback(
+    (type: BandAlertType, source?: AlertSource) => postAlert("/api/alert", { type, source }),
+    [postAlert],
+  );
+
+  // ── Real motion detection (phone only; the embedded frame uses the simulate buttons) ──
+  const fallPendingRef = useRef(false);
+  const startFallRef = useRef<(source: AlertSource) => void>(() => {});
+  const motion = useMotionDetection(started && !embedded, (e) => {
+    if (fallPendingRef.current) return; // already asking "Are you OK?"
+    if (e.type === "fall") {
+      startFallRef.current("detector");
+    } else {
+      lastSentRef.current = 0; // a deliberate SOS shake must not be swallowed by the client-side limit
+      void sendAlert("sos_shake", "detector");
+    }
+  });
+
+  // ── Heartbeat: write HR (and whether the resident moved) to the DB every 2s ──
+  useEffect(() => {
+    if (!started) return;
+    const id = setInterval(() => {
+      const heartRate = hrRef.current;
+      if (heartRate == null || document.visibilityState !== "visible") return;
+      void fetch("/api/heartbeat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ residentId, heartRate: Math.round(clamp(heartRate, 20, 250)), moved: motion.takeMoved() }),
+      }).catch(() => {});
+    }, HEARTBEAT_MS);
+    return () => clearInterval(id);
+  }, [started, residentId, motion]);
 
   // ── Vitals: HR > 130 or < 45 for 10s → P1 vitals alert (once per excursion) ──
   const outOfRangeSinceRef = useRef<number | null>(null);
@@ -161,7 +197,7 @@ function Band({ residentId, embedded }: { residentId: string; embedded: boolean 
     }
   }, [hr, started, sendAlert]);
 
-  // ── Fall "Are you OK?" countdown (simulated now; real detector in Checkpoint 3) ──
+  // ── Fall "Are you OK?" countdown (from the motion detector or the embedded "Simulate fall") ──
   const [fallDeadline, setFallDeadline] = useState<number | null>(null);
   const fallSourceRef = useRef<AlertSource>("simulated");
   const startFallCountdown = useCallback((source: AlertSource) => {
@@ -179,6 +215,18 @@ function Band({ residentId, embedded }: { residentId: string; embedded: boolean 
     }, ms);
     return () => clearTimeout(id);
   }, [fallDeadline, sendAlert]);
+
+  useEffect(() => {
+    fallPendingRef.current = fallDeadline != null;
+    startFallRef.current = startFallCountdown;
+  }, [fallDeadline, startFallCountdown]);
+
+  // ── Voice: continuous listening; only the sentence with a trigger word goes to /api/triage ──
+  const voice = useVoiceTrigger({
+    enabled: started && !!resident?.canSpeak,
+    lang,
+    onTrigger: (sentence) => void postAlert("/api/triage", { transcript: sentence, language: lang }),
+  });
 
   // ── Start Kijo (permissions must be requested inside the tap) ──
   const requestWakeLock = useCallback(async () => {
@@ -311,6 +359,13 @@ function Band({ residentId, embedded }: { residentId: string; embedded: boolean 
           {sending ? t.sending : toast ?? (error ? t.offline : "")}
         </div>
 
+        {voice.listening && (
+          <div className="flex items-center justify-center gap-2 text-lg text-teal-300" aria-live="polite">
+            <span className="inline-block h-2.5 w-2.5 animate-pulse rounded-full bg-teal-400" aria-hidden />
+            🎙️ {t.listening}
+          </div>
+        )}
+
         <LanguageSwitch lang={lang} onChange={setLangOverride} />
 
         {fallSecondsLeft != null && (
@@ -432,7 +487,12 @@ function HelpOverlay({
           <span className="tabular-nums">{remaining > 0 ? formatMmSs(remaining) : t.anyMoment}</span>
         </div>
       )}
-      <p className="max-w-sm text-2xl text-teal-100/80">{t.stayCalm}</p>
+      {alert.type === "voice" && alert.transcript && (
+        <p className="max-w-sm text-xl italic text-teal-100/60">“{alert.transcript}”</p>
+      )}
+      <p className="max-w-sm text-2xl text-teal-100/80">
+        {alert.type === "voice" && alert.patientMessage ? alert.patientMessage : t.stayCalm}
+      </p>
     </div>
   );
 }
