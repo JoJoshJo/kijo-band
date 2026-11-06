@@ -7,6 +7,7 @@ import AlertQueue from "./AlertQueue";
 import Header from "./Header";
 import { NurseBadge, NursePod } from "./NursePod";
 import ResidentDrawer from "./ResidentDrawer";
+import { useEscalation } from "./useEscalation";
 import { useNow } from "./util";
 
 const fetcher = async (url: string): Promise<StateResponse> => {
@@ -31,6 +32,8 @@ export default function Dashboard({ logoSrc }: { logoSrc: string | null }) {
   const residents = data?.residents ?? [];
   const nurses = data?.nurses ?? [];
   const alerts = data?.alerts ?? [];
+  useEscalation(alerts, now, refresh);
+
   const selected = selectedId ? residents.find((r) => r.id === selectedId) : undefined;
 
   const podNurses = nurses.filter((n) => residents.some((r) => r.assignedNurseId === n.id));

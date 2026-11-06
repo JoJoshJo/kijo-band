@@ -18,6 +18,23 @@
   animation: kijo-flash 2s linear infinite;
 }
 
+/* Escalated card: red border flashes (P1 rate) while the alert is still open. */
+@keyframes kijo-border-flash {
+  0%,
+  49% {
+    border-color: #ef4444;
+    box-shadow: 0 0 18px rgba(239, 68, 68, 0.55);
+  }
+  50%,
+  100% {
+    border-color: rgba(239, 68, 68, 0.25);
+    box-shadow: none;
+  }
+}
+.kijo-border-flash {
+  animation: kijo-border-flash 0.5s linear infinite;
+}
+
 /* Scrolling pulse line: shift left by one beat per heartbeat (duration set inline from HR). */
 @keyframes kijo-pulse-scroll {
   from {

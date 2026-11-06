@@ -58,8 +58,8 @@ export default function AlertCard({
 
   return (
     <article
-      className={`kijo-card-enter relative overflow-hidden rounded-lg border bg-slate-900/90 p-3 pl-4 ${
-        escalatedTo ? "border-red-500" : "border-slate-700"
+      className={`kijo-card-enter relative overflow-hidden rounded-lg bg-slate-900/90 p-3 pl-4 ${
+        escalatedTo ? `border-2 border-red-500 ${isOpen ? "kijo-border-flash" : ""}` : "border border-slate-700"
       }`}
     >
       <span className={`absolute inset-y-0 left-0 w-1.5 ${p.bg} ${isOpen ? p.flash : ""}`} />
