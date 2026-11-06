@@ -1,5 +1,6 @@
 import { getSql, rowToAlert } from "@/lib/db";
 import { sendNtfy } from "@/lib/notify";
+import { clientIp, rateLimit, tooManyRequests } from "@/lib/rateLimit";
 
 // POST /api/escalate { alertId } — called by the dashboard when an OPEN alert's 90s ring runs out.
 // Idempotent: escalates at most once, only while the alert is still open, and only after 90s.
@@ -12,6 +13,9 @@ const ALERT_COLUMNS = `id, resident_id, type, priority, summary, transcript, hea
   escalated_to, assisting_nurse_ids, status, created_at, acknowledged_at, resolved_at, patient_message`;
 
 export async function POST(req: Request) {
+  // Every open dashboard calls this once per due alert; 60 per 10s per IP leaves plenty of room.
+  const wait = rateLimit(`escalate:${clientIp(req)}`, 60, 10_000);
+  if (wait) return tooManyRequests(wait);
   const body: unknown = await req.json().catch(() => null);
   const alertId = body && typeof body === "object" ? (body as { alertId?: unknown }).alertId : undefined;
   if (typeof alertId !== "string" || !ID_RE.test(alertId)) {

@@ -1,5 +1,6 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import { getSql } from "@/lib/db";
+import { clientIp, rateLimit, tooManyRequests } from "@/lib/rateLimit";
 
 // POST /api/admin/reset — clears all alerts and guest residents, resets resident + nurse statuses.
 // Requires header `x-admin-secret: <DEMO_ADMIN_SECRET>`.
@@ -16,6 +17,9 @@ export async function POST(req: Request) {
   if (!expected) {
     return Response.json({ error: "DEMO_ADMIN_SECRET is not configured on the server" }, { status: 503 });
   }
+  // Brute-force guard: 5 attempts per minute per IP (checked before the secret is compared).
+  const wait = rateLimit(`admin-reset:${clientIp(req)}`, 5, 60_000);
+  if (wait) return tooManyRequests(wait);
   const given = req.headers.get("x-admin-secret") ?? "";
   if (given.length === 0 || given.length > 256 || !secretMatches(given, expected)) {
     return Response.json({ error: "Wrong admin secret" }, { status: 401 });

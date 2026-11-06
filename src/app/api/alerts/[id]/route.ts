@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
 import { getSql, rowToAlert } from "@/lib/db";
+import { clientIp, rateLimit, tooManyRequests } from "@/lib/rateLimit";
 
 // PATCH /api/alerts/:id — dashboard actions on an alert.
 // Body: { action: "acknowledge", nurseId?: string } | { action: "resolve" } | { action: "assist", nurseId: string }
@@ -18,6 +19,9 @@ function bad(status: number, error: string) {
 export async function PATCH(req: NextRequest, ctx: RouteContext<"/api/alerts/[id]">) {
   const { id } = await ctx.params;
   if (!ID_RE.test(id)) return bad(400, "Invalid alert id");
+  // Dashboard clicks: 60 per 10s per IP is far above human speed (several screens may share an IP).
+  const wait = rateLimit(`alerts-patch:${clientIp(req)}`, 60, 10_000);
+  if (wait) return tooManyRequests(wait);
 
   const body: unknown = await req.json().catch(() => null);
   if (!body || typeof body !== "object") return bad(400, "Body must be a JSON object");
