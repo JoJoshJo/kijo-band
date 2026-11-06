@@ -102,8 +102,18 @@ export async function sendNtfy(push: NtfyAlertPush): Promise<void> {
   }
 }
 
+/** NTFY_DRY_RUN=1 (local dev only): log the push instead of sending it, so nobody's phone is paged. */
+function isDryRun(): boolean {
+  return process.env.NTFY_DRY_RUN === "1";
+}
+
 /** POST a JSON message to ntfy. Never throws; logs only the alert id and the failure kind (never the topic). */
-async function postNtfy(body: object, alertId: string): Promise<void> {
+async function postNtfy(body: { title: string; priority: number }, alertId: string): Promise<void> {
+  if (isDryRun()) {
+    // Title and priority only: never the topic, and not the ack URL (it carries the per-alert token).
+    console.info(`sendNtfy [dry run] alert ${alertId}: "${body.title}" priority ${body.priority}`);
+    return;
+  }
   try {
     const res = await fetch(NTFY_BASE, {
       method: "POST",
