@@ -34,7 +34,7 @@ export async function POST(request: NextRequest, ctx: RouteContext<"/api/alert/[
     const [row] = await sql`
       SELECT a.priority, a.status, a.summary, a.ack_token, r.name, r.room
       FROM alerts a JOIN residents r ON r.id = a.resident_id
-      WHERE a.id = ${id} AND a.resident_id = ${residentId}`;
+      WHERE a.id = ${id} AND a.resident_id = ${residentId} AND r.active`;
     if (!row) return Response.json({ error: "Alert not found" }, { status: 404 });
     if (row.status === "resolved") return Response.json({ ok: true, result: "already_resolved", changed: false });
 

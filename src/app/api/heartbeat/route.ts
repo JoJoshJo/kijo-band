@@ -49,7 +49,7 @@ export async function POST(request: Request) {
       SET heart_rate = ${b.heartRate},
           last_motion_at = CASE WHEN ${moved}::boolean THEN ${now}::bigint ELSE last_motion_at END,
           motion_state = COALESCE(${(b.motionState as string | undefined) ?? null}::text, motion_state)
-      WHERE id = ${b.residentId}
+      WHERE id = ${b.residentId} AND active
       RETURNING id`;
     if (rows.length === 0) return Response.json({ error: "Resident not found" }, { status: 404 });
     return new Response(null, { status: 204 });

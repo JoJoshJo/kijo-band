@@ -34,7 +34,7 @@ export async function createAlert(input: NewAlert): Promise<CreateAlertResult> {
   const heartRate = input.heartRate ?? null;
   const transcript = input.transcript ?? null;
 
-  const [resident] = await sql`SELECT id, name, room, language FROM residents WHERE id = ${residentId}`;
+  const [resident] = await sql`SELECT id, name, room, language FROM residents WHERE id = ${residentId} AND active`;
   if (!resident) return { kind: "not_found" };
   const lang = resident.language as Language;
   const patientMessage =
@@ -53,7 +53,7 @@ export async function createAlert(input: NewAlert): Promise<CreateAlertResult> {
       SELECT r.id, ${type}, ${priority}, ${summary}, ${transcript}, ${heartRate}, r.assigned_nurse_id,
              'open', ${now}, ${patientMessage}, ${ackToken}
       FROM residents r
-      WHERE r.id = ${residentId}
+      WHERE r.id = ${residentId} AND r.active -- removed from the floor → no alerts
         AND NOT EXISTS (
           SELECT 1 FROM alerts a
           WHERE a.resident_id = ${residentId} AND a.created_at > ${now - ALERT_RATE_LIMIT_MS}
