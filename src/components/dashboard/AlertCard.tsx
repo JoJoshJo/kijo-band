@@ -140,7 +140,7 @@ export default function AlertCard({
             type="button"
             disabled={busy !== null}
             onClick={() => run("acknowledge", actingNurseId)}
-            className="rounded bg-teal-600 px-3 py-1 text-sm font-semibold text-white hover:bg-teal-500 disabled:opacity-50"
+            className="min-h-12 rounded bg-teal-600 px-5 text-base font-semibold text-white hover:bg-teal-500 disabled:opacity-50 lg:min-h-0 lg:px-3 lg:py-1 lg:text-sm"
           >
             {busy === "acknowledge" ? "…" : "Acknowledge"}
           </button>
@@ -149,7 +149,7 @@ export default function AlertCard({
           type="button"
           disabled={busy !== null}
           onClick={() => run("resolve")}
-          className="rounded bg-slate-700 px-3 py-1 text-sm font-semibold text-white hover:bg-slate-600 disabled:opacity-50"
+          className="min-h-12 rounded bg-slate-700 px-5 text-base font-semibold text-white hover:bg-slate-600 disabled:opacity-50 lg:min-h-0 lg:px-3 lg:py-1 lg:text-sm"
         >
           {busy === "resolve" ? "…" : "Resolve"}
         </button>
@@ -158,7 +158,7 @@ export default function AlertCard({
             <select
               value={assistId}
               onChange={(e) => setAssistId(e.target.value)}
-              className="rounded border border-slate-700 bg-slate-950 px-1.5 py-1 text-sm text-slate-200"
+              className="min-h-12 rounded border border-slate-700 bg-slate-950 px-1.5 text-sm text-slate-200 lg:min-h-0 lg:py-1"
               aria-label="Nurse to assist"
             >
               <option value="">Nurse…</option>
@@ -175,7 +175,7 @@ export default function AlertCard({
                 await run("assist", assistId);
                 setAssistId("");
               }}
-              className="rounded border border-teal-600 px-3 py-1 text-sm font-semibold text-teal-300 hover:bg-teal-600/20 disabled:opacity-40"
+              className="min-h-12 rounded border border-teal-600 px-4 text-sm font-semibold text-teal-300 hover:bg-teal-600/20 disabled:opacity-40 lg:min-h-0 lg:px-3 lg:py-1"
             >
               {busy === "assist" ? "…" : "Assist"}
             </button>

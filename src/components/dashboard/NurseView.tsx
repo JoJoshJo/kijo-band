@@ -97,14 +97,14 @@ export default function NurseView({ nurseId, logoSrc }: { nurseId: string; logoS
   }
 
   return (
-    <div className="flex h-screen flex-col bg-[#070b14] text-slate-100">
+    <div className="flex min-h-screen flex-col bg-[#070b14] text-slate-100 lg:h-screen">
       <Header
         logoSrc={logoSrc}
         view="nurse"
         live={live}
         info={
           nurse && (
-            <span className="flex items-center gap-3">
+            <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
               <span className="text-lg font-semibold text-white">
                 {nurse.name} <span className="font-normal text-slate-400">· {nurse.role} · {nurse.wing} · {residents.length} residents</span>
               </span>
@@ -136,8 +136,9 @@ export default function NurseView({ nurseId, logoSrc }: { nurseId: string; logoS
         <TeamEmergencies nurse={nurse} alerts={allAlerts} residents={data.residents} onChanged={refresh} />
       )}
 
-      <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_460px] gap-3 p-3">
-        <div className="grid min-h-0 auto-rows-min grid-cols-2 gap-3 overflow-y-auto pr-1 xl:grid-cols-4">
+      {/* Phone/tablet: queue on top, tiles (2 columns) below, page scrolls. lg+: tiles | 460px queue. */}
+      <div className="flex flex-1 flex-col gap-3 p-3 lg:grid lg:min-h-0 lg:grid-cols-[minmax(0,1fr)_460px]">
+        <div className="order-2 grid auto-rows-min grid-cols-2 gap-3 lg:order-none lg:min-h-0 lg:overflow-y-auto lg:pr-1 xl:grid-cols-4">
           {residents.map((r) => (
             <ResidentTile
               key={r.id}
@@ -150,6 +151,7 @@ export default function NurseView({ nurseId, logoSrc }: { nurseId: string; logoS
           ))}
         </div>
 
+        <div className="order-1 flex flex-col lg:order-none lg:min-h-0">
         <AlertQueue
           alerts={myAlerts ?? []}
           residents={data?.residents ?? []}
@@ -159,6 +161,7 @@ export default function NurseView({ nurseId, logoSrc }: { nurseId: string; logoS
           onSelectResident={(id) => residents.some((r) => r.id === id) && setSelectedId(id)}
           actingNurseId={nurseId}
         />
+        </div>
       </div>
 
       {selected && (
@@ -195,12 +198,13 @@ function TeamEmergencies({
   if (team.length === 0) return null;
 
   return (
-    <div className="flex flex-col">
+    // Sticky so it stays visible while the page scrolls on a phone.
+    <div className="sticky top-0 z-30 flex flex-col">
       {team.map((a) => {
         const r = byId.get(a.residentId);
         const assisting = (a.assistingNurseIds ?? []).includes(nurse.id);
         return (
-          <div key={a.id} className="flex items-center gap-3 border-b border-red-900 bg-red-600/90 px-5 py-1.5 text-sm text-white">
+          <div key={a.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-red-900 bg-red-600 px-3 py-1.5 text-sm text-white sm:px-5 lg:bg-red-600/90">
             <span className="kijo-flash-fast font-bold">●</span>
             <span className="font-semibold">Team emergency</span>
             <span>
@@ -224,7 +228,7 @@ function TeamEmergencies({
                       setBusy(null);
                     }
                   }}
-                  className="rounded bg-white px-3 py-0.5 text-xs font-bold text-red-700 hover:bg-red-50 disabled:opacity-60"
+                  className="min-h-12 rounded bg-white px-5 text-sm font-bold text-red-700 hover:bg-red-50 disabled:opacity-60 lg:min-h-0 lg:px-3 lg:py-0.5 lg:text-xs"
                 >
                   {busy === a.id ? "…" : "Assist"}
                 </button>

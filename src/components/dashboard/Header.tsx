@@ -47,7 +47,7 @@ export default function Header({
   actions?: React.ReactNode;
 }) {
   return (
-    <header className="flex items-center gap-5 border-b border-slate-800 px-5 py-3">
+    <header className="flex flex-wrap items-center gap-x-5 gap-y-2 border-b border-slate-800 px-3 py-3 sm:px-5">
       <span className="flex items-center gap-2.5">
         {logoSrc ? (
           // Source is black-on-white with wide padding: invert → white hexagon on black, then `screen` drops
@@ -67,7 +67,7 @@ export default function Header({
         <span className="text-xl font-black tracking-[0.3em] text-white">KIJO</span>
       </span>
       <ViewToggle current={view} />
-      <span className="text-slate-400">Night Shift</span>
+      <span className="hidden text-slate-400 md:inline">Night Shift</span>
       <NightClock />
       {info}
       <div className="ml-auto flex items-center gap-2">{actions}</div>
