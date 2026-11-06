@@ -13,7 +13,9 @@ import {
   type BandAlertType,
   residentSaysOk,
 } from "@/lib/detection/alertRules";
-import { LANGUAGES, STRINGS, fill, nurseDisplayName, type BandStrings } from "./_lib/i18n";
+import { LANGUAGES, LANGUAGE_NAMES, STRINGS, fill, nurseDisplayName, type BandStrings } from "./_lib/i18n";
+import { FOCUS, useLargeText } from "./_lib/a11y";
+import { useSpeak, vibrateSent } from "./_lib/useSpeak";
 import { useMotionDetection } from "./_lib/useMotionDetection";
 import { useVoiceTrigger } from "./_lib/useVoiceTrigger";
 import PulseCheck from "./PulseCheck";
@@ -49,13 +51,13 @@ function InstallHint({ t }: { t: BandStrings }) {
   if (kind !== "ios" && kind !== "prompt") return null;
   return (
     <div className="w-full max-w-sm rounded-2xl border border-slate-700 bg-slate-900 p-4 text-center">
-      <div className="text-lg font-semibold">{t.installTitle}</div>
+      <div className="text-xl font-semibold">{t.installTitle}</div>
       {kind === "ios" ? (
-        <div className="mt-1 text-base text-slate-300">{t.installIos}</div>
+        <div className="mt-1 text-xl text-slate-300">{t.installIos}</div>
       ) : (
         <button
           onClick={() => void promptInstall()}
-          className="mt-3 rounded-full bg-white px-5 py-2 text-lg font-semibold text-black active:scale-95"
+          className={`mt-3 min-h-14 rounded-full bg-white px-6 py-2 text-xl font-semibold text-black active:scale-95 ${FOCUS}`}
         >
           {t.installButton}
         </button>
@@ -90,6 +92,16 @@ function Band({ residentId, embedded }: { residentId: string; embedded: boolean 
   const [langOverride, setLangOverride] = useState<Language | null>(null);
   const lang: Language = langOverride ?? resident?.language ?? "en";
   const t = STRINGS[lang];
+  const [settingsOpen, setSettingsOpen] = useState(false);
+
+  // Large text: scale the whole band (Tailwind sizes are rem) while it is on screen.
+  const [largeText, setLargeText] = useLargeText();
+  useEffect(() => {
+    document.documentElement.style.fontSize = largeText ? "125%" : "";
+    return () => {
+      document.documentElement.style.fontSize = "";
+    };
+  }, [largeText]);
 
   // Embedded (dashboard phone frame) skips the Start screen: no motion/wake-lock permission is needed in an iframe.
   const [started, setStarted] = useState(embedded);
@@ -208,8 +220,9 @@ function Band({ residentId, embedded }: { residentId: string; embedded: boolean 
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ residentId, heartRate: hrRef.current ?? undefined, ...body }),
         });
-        if (res.status === 429) showToast(STRINGS[lang].waitMoment);
-        else if (!res.ok) {
+        if (res.ok) vibrateSent();
+        else if (res.status === 429) showToast(STRINGS[lang].waitMoment);
+        else {
           lastSentRef.current = 0; // let them retry right away
           showToast(STRINGS[lang].sendFailed);
         }
@@ -310,16 +323,35 @@ function Band({ residentId, embedded }: { residentId: string; embedded: boolean 
     startFallRef.current = startFallCountdown;
   }, [fallDeadline, startFallCountdown]);
 
+  // ── Spoken feedback: say out loud when help has been called and when the nurse is on the way ──
+  const { speak, stop: stopSpeaking, speaking } = useSpeak(lang);
+  const announcedRef = useRef<{ id: string | null; status: Alert["status"] | null } | null>(null);
+  useEffect(() => {
+    if (!data || !started) return;
+    const a = pickActiveAlert(data.alerts, residentId);
+    const prev = announcedRef.current;
+    announcedRef.current = { id: a?.id ?? null, status: a?.status ?? null };
+    if (!prev || !a) return; // first look: alerts that were already open are not announced again
+    const n = data.nurses.find((x) => x.id === a.assignedNurseId);
+    const name = n ? nurseDisplayName(n.name, lang) : "";
+    const s = STRINGS[lang];
+    const acked = a.status === "acknowledged" && (prev.id !== a.id || prev.status !== "acknowledged");
+    if (acked && name) speak(`${fill(s.onTheWay, { nurse: name })}.`);
+    else if (prev.id !== a.id) speak(name ? `${s.helpComing}. ${fill(s.spokenCalled, { nurse: name })}` : `${s.helpComing}.`);
+  }, [data, started, residentId, lang, speak]);
+
   // ── Voice: background listening (trigger words) + the Talk button (one sentence, no trigger word) ──
+  // Paused while the band is speaking so it doesn't hear itself.
   const voice = useVoiceTrigger({
-    enabled: started && !!resident?.canSpeak,
+    enabled: started && !!resident?.canSpeak && !speaking,
     lang,
     onTrigger: (sentence) => void postAlert("/api/triage", { transcript: sentence, language: lang }),
     onTalk: (sentence) => void postAlert("/api/triage", { transcript: sentence, language: lang }),
   });
   const onTalkTap = useCallback(() => {
+    stopSpeaking(); // the resident wants to talk: stop talking to them
     if (!voice.talk()) showToast(STRINGS[lang].voiceUnavailable);
-  }, [voice, lang, showToast]);
+  }, [voice, lang, showToast, stopSpeaking]);
 
   // ── Start Kijo (permissions must be requested inside the tap) ──
   const requestWakeLock = useCallback(async () => {
@@ -385,12 +417,13 @@ function Band({ residentId, embedded }: { residentId: string; embedded: boolean 
         </div>
         <button
           onClick={handleStart}
-          className="flex aspect-square w-[70vw] max-w-80 items-center justify-center rounded-full bg-teal-500 text-4xl font-bold text-black shadow-[0_0_60px_rgba(20,184,166,0.5)] active:scale-95"
+          className={`flex aspect-square w-[70vw] max-w-80 items-center justify-center rounded-full bg-teal-500 text-4xl font-bold text-black shadow-[0_0_60px_rgba(20,184,166,0.5)] active:scale-95 ${FOCUS}`}
         >
           {t.start}
         </button>
         <div className="text-xl text-slate-400">{t.startHint}</div>
-        <LanguageSwitch lang={lang} onChange={setLangOverride} />
+        <LanguageSwitch t={t} lang={lang} onChange={setLangOverride} />
+        <LargeTextSwitch t={t} on={largeText} onChange={setLargeText} />
         <InstallHint t={t} />
       </div>
     );
@@ -401,7 +434,7 @@ function Band({ residentId, embedded }: { residentId: string; embedded: boolean 
 
   return (
     <>
-      <div className="relative flex flex-1 flex-col gap-4 p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+      <div className="relative flex flex-1 touch-manipulation flex-col gap-4 p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
         {activeAlert && fallSecondsLeft == null && (
           <AlertBanner t={t} lang={lang} alert={activeAlert} nurse={nurse} onOpen={() => setSheetAlertId(activeAlert.id)} />
         )}
@@ -410,24 +443,26 @@ function Band({ residentId, embedded }: { residentId: string; embedded: boolean 
         <header className="flex items-center justify-between gap-3">
           <div className="min-w-0">
             <div className="truncate text-xl font-semibold">{resident.name}</div>
-            <div className="text-base text-slate-400">
+            <div className="text-xl text-slate-300">
               {t.room} {resident.room}
             </div>
           </div>
           <div className="flex shrink-0 gap-2">
             <button
-              onClick={() => setLangOverride(LANGUAGES[(LANGUAGES.indexOf(lang) + 1) % LANGUAGES.length])}
-              aria-label={t.language}
-              className="flex h-14 min-w-14 items-center justify-center rounded-2xl bg-slate-800 px-3 text-lg font-bold uppercase active:scale-95"
+              onClick={() => setSettingsOpen(true)}
+              aria-label={`${t.language}: ${LANGUAGE_NAMES[lang]}. ${t.largeText}`}
+              aria-haspopup="dialog"
+              className={`flex h-14 min-w-14 items-center justify-center rounded-2xl bg-slate-800 px-3 text-xl font-bold uppercase active:scale-95 ${FOCUS}`}
             >
-              {lang}
+              <span aria-hidden>{lang}</span>
             </button>
             <button
               onClick={() => setPulseOpen(true)}
               aria-label={t.checkPulse}
-              className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-800 text-2xl text-red-500 active:scale-95"
+              aria-haspopup="dialog"
+              className={`flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-800 text-2xl text-red-400 active:scale-95 ${FOCUS}`}
             >
-              ♥
+              <span aria-hidden>♥</span>
             </button>
           </div>
         </header>
@@ -457,7 +492,7 @@ function Band({ residentId, embedded }: { residentId: string; embedded: boolean 
           />
         </div>
 
-        <div className="min-h-7 text-center text-lg text-slate-300" aria-live="polite">
+        <div className="min-h-7 text-center text-xl text-slate-300" role="status" aria-live="polite">
           {sending ? t.sending : toast ?? (error ? t.offline : "")}
         </div>
 
@@ -468,6 +503,17 @@ function Band({ residentId, embedded }: { residentId: string; embedded: boolean 
             alert={sheetAlert}
             onClose={() => setSheetAlertId(null)}
             onCancel={() => cancelAlert(sheetAlert.id)}
+          />
+        )}
+
+        {settingsOpen && (
+          <SettingsSheet
+            t={t}
+            lang={lang}
+            onLang={setLangOverride}
+            largeText={largeText}
+            onLargeText={setLargeText}
+            onClose={() => setSettingsOpen(false)}
           />
         )}
 
@@ -512,8 +558,8 @@ function NeedButton({
     <button
       onClick={onClick}
       disabled={disabled}
-      className={`flex h-28 flex-col items-center justify-center gap-1 rounded-3xl text-2xl font-semibold active:scale-95 disabled:opacity-60 ${
-        danger ? "bg-red-600 text-white active:bg-red-500" : "bg-slate-800 active:bg-slate-700"
+      className={`flex min-h-28 flex-col items-center justify-center gap-1 rounded-3xl py-2 text-2xl font-semibold active:scale-95 disabled:opacity-60 ${FOCUS} ${
+        danger ? "bg-red-600 text-white active:bg-red-700" : "bg-slate-800 active:bg-slate-700"
       }`}
     >
       <span className="text-4xl" aria-hidden>
@@ -524,22 +570,130 @@ function NeedButton({
   );
 }
 
-function LanguageSwitch({ lang, onChange }: { lang: Language; onChange: (l: Language) => void }) {
+function LanguageSwitch({ t, lang, onChange }: { t: BandStrings; lang: Language; onChange: (l: Language) => void }) {
   return (
-    <div className="flex justify-center gap-2">
+    <div role="group" aria-label={t.language} className="flex justify-center gap-2">
       {LANGUAGES.map((l) => (
         <button
           key={l}
           onClick={() => onChange(l)}
           aria-pressed={l === lang}
-          className={`h-12 w-16 rounded-xl text-lg font-semibold uppercase ${
-            l === lang ? "bg-teal-500 text-black" : "bg-slate-800 text-slate-300"
+          aria-label={LANGUAGE_NAMES[l]}
+          lang={l}
+          className={`h-14 min-w-20 rounded-2xl px-3 text-xl font-semibold uppercase ${FOCUS} ${
+            l === lang ? "bg-teal-500 text-black" : "bg-slate-800 text-slate-200"
           }`}
         >
           {l}
         </button>
       ))}
     </div>
+  );
+}
+
+/** On/off switch for large text (remembered on this phone). */
+function LargeTextSwitch({ t, on, onChange }: { t: BandStrings; on: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <button
+      role="switch"
+      aria-checked={on}
+      onClick={() => onChange(!on)}
+      className={`flex min-h-16 w-full max-w-sm items-center justify-between gap-4 rounded-2xl bg-slate-800 px-5 text-2xl font-semibold ${FOCUS}`}
+    >
+      <span>
+        <span className="text-[1.25em]" aria-hidden>
+          A
+        </span>
+        <span className="text-[0.85em]" aria-hidden>
+          A
+        </span>{" "}
+        {t.largeText}
+      </span>
+      <span
+        aria-hidden
+        className={`relative h-9 w-16 shrink-0 rounded-full border-2 transition-colors motion-reduce:transition-none ${
+          on ? "border-teal-400 bg-teal-500" : "border-slate-400 bg-slate-900"
+        }`}
+      >
+        <span
+          className={`absolute top-1 h-6 w-6 rounded-full transition-[left] motion-reduce:transition-none ${
+            on ? "left-8 bg-black" : "left-1 bg-slate-300"
+          }`}
+        />
+      </span>
+    </button>
+  );
+}
+
+/**
+ * Bottom sheet: dims the screen, moves focus into the dialog, Escape or a tap outside closes it,
+ * and focus returns to the control that opened it.
+ */
+function Sheet({ label, onClose, children }: { label: string; onClose: () => void; children: React.ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+  // Mount only: the band re-renders every second (polling), which must not move focus.
+  useEffect(() => {
+    const opener = document.activeElement as HTMLElement | null;
+    ref.current?.querySelector<HTMLElement>("button")?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onCloseRef.current();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      opener?.focus?.();
+    };
+  }, []);
+  return (
+    <div className="fixed inset-0 z-20 flex flex-col justify-end bg-black/70" onClick={onClose}>
+      <div
+        ref={ref}
+        role="dialog"
+        aria-modal="true"
+        aria-label={label}
+        onClick={(e) => e.stopPropagation()}
+        className="flex flex-col gap-4 rounded-t-3xl bg-slate-900 p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] text-center"
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
+/** Behind the language icon: language + large text. */
+function SettingsSheet({
+  t,
+  lang,
+  onLang,
+  largeText,
+  onLargeText,
+  onClose,
+}: {
+  t: BandStrings;
+  lang: Language;
+  onLang: (l: Language) => void;
+  largeText: boolean;
+  onLargeText: (v: boolean) => void;
+  onClose: () => void;
+}) {
+  return (
+    <Sheet label={t.language} onClose={onClose}>
+      <h2 className="text-2xl font-semibold">{t.language}</h2>
+      <LanguageSwitch t={t} lang={lang} onChange={onLang} />
+      <div className="flex justify-center">
+        <LargeTextSwitch t={t} on={largeText} onChange={onLargeText} />
+      </div>
+      <button
+        onClick={onClose}
+        className={`min-h-16 rounded-2xl border-2 border-slate-400 text-2xl font-bold active:scale-95 ${FOCUS}`}
+      >
+        {t.close}
+      </button>
+    </Sheet>
   );
 }
 
@@ -565,9 +719,10 @@ function AlertBanner({
   return (
     <button
       onClick={onOpen}
-      className="-mx-5 -mt-5 flex min-h-16 items-center justify-center gap-3 bg-green-600 px-4 text-xl font-semibold text-white active:bg-green-500"
+      aria-haspopup="dialog"
+      className={`-mx-5 -mt-5 flex min-h-16 items-center justify-center gap-3 bg-green-700 px-4 text-xl font-semibold text-white active:bg-green-800 ${FOCUS} focus-visible:-outline-offset-8`}
     >
-      <span className="h-3 w-3 shrink-0 animate-pulse rounded-full bg-white" aria-hidden />
+      <span className="h-3 w-3 shrink-0 rounded-full bg-white motion-safe:animate-pulse" aria-hidden />
       <span className="truncate">{text}</span>
     </button>
   );
@@ -603,13 +758,7 @@ function HelpSheet({
   }
 
   return (
-    <div className="fixed inset-0 z-20 flex flex-col justify-end bg-black/60" onClick={onClose}>
-      <div
-        role="dialog"
-        aria-label={t.helpComing}
-        onClick={(e) => e.stopPropagation()}
-        className="flex flex-col gap-4 rounded-t-3xl bg-slate-900 p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] text-center"
-      >
+    <Sheet label={t.helpComing} onClose={onClose}>
         <p className="text-2xl leading-snug">{message}</p>
         {confirming ? (
           <>
@@ -618,14 +767,14 @@ function HelpSheet({
               <button
                 onClick={() => void confirmCancel()}
                 disabled={busy}
-                className="min-h-16 rounded-2xl bg-white text-2xl font-bold text-black active:scale-95 disabled:opacity-60"
+                className={`min-h-16 rounded-2xl bg-white text-2xl font-bold text-black active:scale-95 disabled:opacity-60 ${FOCUS}`}
               >
                 {t.yes}
               </button>
               <button
                 onClick={() => setConfirming(false)}
                 disabled={busy}
-                className="min-h-16 rounded-2xl border-2 border-slate-500 text-2xl font-bold active:scale-95 disabled:opacity-60"
+                className={`min-h-16 rounded-2xl border-2 border-slate-400 text-2xl font-bold active:scale-95 disabled:opacity-60 ${FOCUS}`}
               >
                 {t.no}
               </button>
@@ -636,21 +785,20 @@ function HelpSheet({
             {!flaggedOk && (
               <button
                 onClick={() => setConfirming(true)}
-                className="min-h-16 rounded-2xl bg-white text-2xl font-bold text-black active:scale-95"
+                className={`min-h-16 rounded-2xl bg-white text-2xl font-bold text-black active:scale-95 ${FOCUS}`}
               >
                 {t.cancelRequest}
               </button>
             )}
             <button
               onClick={onClose}
-              className="min-h-16 rounded-2xl border-2 border-slate-500 text-2xl font-bold active:scale-95"
+              className={`min-h-16 rounded-2xl border-2 border-slate-400 text-2xl font-bold active:scale-95 ${FOCUS}`}
             >
               {t.close}
             </button>
           </>
         )}
-      </div>
-    </div>
+    </Sheet>
   );
 }
 
@@ -664,14 +812,15 @@ function FallCountdown({
   onCancel: () => void;
 }) {
   return (
-    <div role="alertdialog" className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-6 bg-black/95 p-8 text-center">
+    <div role="alertdialog" aria-modal="true" aria-label={t.areYouOk} className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-6 bg-black/95 p-8 text-center">
       <h1 className="text-5xl font-bold">{t.areYouOk}</h1>
       <p className="text-2xl text-slate-300">{t.fallDetected}</p>
       <div className="text-8xl font-black tabular-nums text-red-500">{secondsLeft}</div>
-      <p className="text-xl text-slate-400">{fill(t.callingIn, { s: secondsLeft })}</p>
+      <p className="text-xl text-slate-300">{fill(t.callingIn, { s: secondsLeft })}</p>
       <button
         onClick={onCancel}
-        className="h-24 w-full max-w-sm rounded-3xl bg-emerald-500 text-4xl font-bold text-black active:scale-95"
+        autoFocus
+        className={`h-24 w-full max-w-sm rounded-3xl bg-emerald-500 text-4xl font-bold text-black active:scale-95 ${FOCUS}`}
       >
         {t.imOk}
       </button>

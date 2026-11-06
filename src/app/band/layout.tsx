@@ -13,8 +13,8 @@ export const viewport: Viewport = {
   themeColor: "#000000",
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
+  // Pinch-zoom stays allowed (accessibility); buttons use touch-action: manipulation, so a double tap
+  // on a button doesn't zoom.
   viewportFit: "cover",
 };
 

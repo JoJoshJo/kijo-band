@@ -9,6 +9,7 @@ import {
   resample,
   type PulseSample,
 } from "@/lib/detection/pulse";
+import { FOCUS } from "./_lib/a11y";
 import type { BandStrings } from "./_lib/i18n";
 
 type Phase = "intro" | "measuring" | "done" | "failed" | "error";
@@ -198,7 +199,7 @@ export default function PulseCheck({
       className="fixed inset-0 z-[25] flex flex-col items-center overflow-y-auto bg-black px-6 pt-8 pb-[max(1.5rem,env(safe-area-inset-bottom))] text-center"
     >
       <h1 className="text-4xl font-bold">{t.checkPulse}</h1>
-      <p className="mt-1 text-base text-slate-400">{t.pulseDisclaimer}</p>
+      <p className="mt-1 text-xl text-slate-300">{t.pulseDisclaimer}</p>
 
       <div className="flex w-full max-w-sm flex-1 flex-col items-center justify-center gap-5">
         {/* Camera preview: turns red when the fingertip covers the lens */}
@@ -216,10 +217,10 @@ export default function PulseCheck({
         {phase === "measuring" && (
           <>
             <p className="text-2xl leading-snug">{covered ? t.pulseHoldStill : t.pulseCover}</p>
-            {torch === false && <p className="text-lg text-yellow-200">{t.pulseNoTorch}</p>}
+            {torch === false && <p className="text-xl text-yellow-200">{t.pulseNoTorch}</p>}
             <PulseWave y={wave} />
             <div className="h-3 w-full overflow-hidden rounded-full bg-slate-800">
-              <div className="h-full bg-teal-400 transition-[width] duration-100" style={{ width: `${Math.round(progress * 100)}%` }} />
+              <div className="h-full bg-teal-400 transition-[width] duration-100 motion-reduce:transition-none" style={{ width: `${Math.round(progress * 100)}%` }} />
             </div>
             <div className="flex items-center gap-2 text-xl" aria-live="polite">
               <span className={`inline-block h-3 w-3 rounded-full ${qualityColor}`} aria-hidden />
@@ -232,7 +233,7 @@ export default function PulseCheck({
           <>
             <div className="flex items-baseline gap-2">
               <span className="text-8xl font-black tabular-nums">{bpm}</span>
-              <span className="text-2xl text-slate-400">{t.bpm}</span>
+              <span className="text-2xl text-slate-300">{t.bpm}</span>
             </div>
             <p className="text-xl text-emerald-300">{t.pulseSent}</p>
           </>
@@ -244,7 +245,7 @@ export default function PulseCheck({
         {(phase === "intro" || phase === "failed" || phase === "error") && (
           <button
             onClick={() => void start()}
-            className="min-h-16 rounded-2xl bg-teal-500 text-2xl font-bold text-black active:scale-95"
+            className={`min-h-16 rounded-2xl bg-teal-500 text-2xl font-bold text-black active:scale-95 ${FOCUS}`}
           >
             {phase === "intro" ? t.pulseStart : t.pulseRetry}
           </button>
@@ -254,7 +255,7 @@ export default function PulseCheck({
             stopCamera();
             onClose();
           }}
-          className="min-h-16 rounded-2xl border-2 border-slate-500 text-2xl font-bold text-white active:scale-95"
+          className={`min-h-16 rounded-2xl border-2 border-slate-500 text-2xl font-bold text-white active:scale-95 ${FOCUS}`}
         >
           {phase === "done" ? t.pulseDone : t.back}
         </button>

@@ -73,7 +73,14 @@ export interface BandStrings {
   voiceUnavailable: string;
   language: string;
   close: string;
+  /** Spoken after an alert is sent: "{nurse} has been called." (follows helpComing) */
+  spokenCalled: string;
+  /** Settings sheet behind the language icon */
+  largeText: string;
 }
+
+/** Each language's own name (shown and announced the same in every UI language). */
+export const LANGUAGE_NAMES: Record<Language, string> = { en: "English", fr: "Français", es: "Español" };
 
 export const STRINGS: Record<Language, BandStrings> = {
   en: {
@@ -138,6 +145,8 @@ export const STRINGS: Record<Language, BandStrings> = {
     voiceUnavailable: "Voice isn't available here — please use the buttons.",
     language: "Language",
     close: "Close",
+    spokenCalled: "{nurse} has been called.",
+    largeText: "Large text",
   },
   fr: {
     loading: "Chargement…",
@@ -201,6 +210,8 @@ export const STRINGS: Record<Language, BandStrings> = {
     voiceUnavailable: "La voix n’est pas disponible ici — utilisez les boutons.",
     language: "Langue",
     close: "Fermer",
+    spokenCalled: "On a prévenu {nurse}.",
+    largeText: "Grands caractères",
   },
   es: {
     loading: "Cargando…",
@@ -264,6 +275,8 @@ export const STRINGS: Record<Language, BandStrings> = {
     voiceUnavailable: "La voz no está disponible aquí — use los botones.",
     language: "Idioma",
     close: "Cerrar",
+    spokenCalled: "Hemos avisado a {nurse}.",
+    largeText: "Letra grande",
   },
 };
 

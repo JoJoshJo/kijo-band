@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Language } from "@/lib/types";
 import { MAX_TRANSCRIPT_CHARS, containsTrigger } from "@/lib/detection/voice";
+import { SPEECH_LANG } from "./speechLang";
 
 // Minimal Web Speech API typings (not in TypeScript's DOM lib).
 interface SpeechRecognitionAlternativeLike {
@@ -39,7 +40,6 @@ type SpeechRecognitionCtor = (new () => SpeechRecognitionLike) & {
   install?: (o: SpeechRecognitionOptionsLike) => Promise<boolean>;
 };
 
-const SPEECH_LANG: Record<Language, string> = { en: "en-US", fr: "fr-FR", es: "es-ES" };
 const FATAL_ERRORS = new Set(["not-allowed", "service-not-allowed", "audio-capture", "language-not-supported"]);
 const TALK_TIMEOUT_MS = 10_000; // tap-and-talk gives up after this with no final sentence
 
