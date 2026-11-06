@@ -11,6 +11,7 @@ import {
   VITALS_SUSTAIN_MS,
   type AlertSource,
   type BandAlertType,
+  residentSaysOk,
 } from "@/lib/detection/alertRules";
 import { LANGUAGES, STRINGS, fill, nurseDisplayName, type BandStrings } from "./_lib/i18n";
 import { useMotionDetection } from "./_lib/useMotionDetection";
@@ -142,6 +143,34 @@ function Band({ residentId, embedded }: { residentId: string; embedded: boolean 
     setToast(msg);
     setTimeout(() => setToast((cur) => (cur === msg ? null : cur)), 3000);
   }, []);
+
+  // "Back" hides the overlay for this alert only (it stays open); a newer alert shows the overlay again.
+  const [hiddenAlertId, setHiddenAlertId] = useState<string | null>(null);
+
+  /** "I'm OK – cancel": P2/P3 are resolved; a P1 is only flagged "resident says OK" (a nurse still checks). */
+  const cancelAlert = useCallback(
+    async (alertId: string): Promise<boolean> => {
+      try {
+        const res = await fetch(`/api/alert/${encodeURIComponent(alertId)}/cancel`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ residentId }),
+        });
+        if (!res.ok) {
+          showToast(STRINGS[lang].cancelFailed);
+          return false;
+        }
+        const body = (await res.json().catch(() => ({}))) as { result?: string };
+        if (body.result === "cancelled") showToast(STRINGS[lang].requestCancelled);
+        await mutate();
+        return true;
+      } catch {
+        showToast(STRINGS[lang].cancelFailed);
+        return false;
+      }
+    },
+    [lang, mutate, residentId, showToast],
+  );
 
   /** POST to /api/alert or /api/triage with the shared 10s client-side limit and error toasts. */
   const postAlert = useCallback(
@@ -334,6 +363,17 @@ function Band({ residentId, embedded }: { residentId: string; embedded: boolean 
       <div className="relative flex flex-1 flex-col gap-5 p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
         <style>{`@keyframes kijo-beat{0%,100%{transform:scale(1)}15%{transform:scale(1.25)}30%{transform:scale(1)}}`}</style>
 
+        {activeAlert && activeAlert.id === hiddenAlertId && fallSecondsLeft == null && (
+          <HelpBanner
+            t={t}
+            lang={lang}
+            alert={activeAlert}
+            nurse={nurse}
+            serverNow={now + clockOffset}
+            onOpen={() => setHiddenAlertId(null)}
+          />
+        )}
+
         {/* Header: name, room, status, live HR */}
         <header className="flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -398,13 +438,16 @@ function Band({ residentId, embedded }: { residentId: string; embedded: boolean 
         {fallSecondsLeft != null && (
           <FallCountdown t={t} secondsLeft={fallSecondsLeft} onCancel={() => setFallDeadline(null)} />
         )}
-        {activeAlert && fallSecondsLeft == null && (
+        {activeAlert && activeAlert.id !== hiddenAlertId && fallSecondsLeft == null && (
           <HelpOverlay
+            key={activeAlert.id}
             t={t}
             lang={lang}
             alert={activeAlert}
             nurse={nurse}
             serverNow={now + clockOffset}
+            onBack={() => setHiddenAlertId(activeAlert.id)}
+            onCancel={() => cancelAlert(activeAlert.id)}
           />
         )}
       </div>
@@ -479,48 +522,187 @@ function formatMmSs(ms: number) {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 }
 
+/** Nurse ETA progress, 0 → 1 over the 2:00 ETA (the ring fills up and stays full at 0:00). */
+function etaProgress(alert: Alert, serverNow: number) {
+  return clamp((serverNow - alert.createdAt) / ETA_MS, 0, 1);
+}
+
+function EtaRing({ progress, done, children }: { progress: number; done: boolean; children: React.ReactNode }) {
+  const R = 88;
+  const C = 2 * Math.PI * R;
+  return (
+    <div className="relative h-56 w-56 shrink-0">
+      <svg viewBox="0 0 200 200" className="h-full w-full -rotate-90" aria-hidden>
+        <circle cx="100" cy="100" r={R} fill="none" strokeWidth="12" className="stroke-teal-900" />
+        <circle
+          cx="100"
+          cy="100"
+          r={R}
+          fill="none"
+          strokeWidth="12"
+          strokeLinecap="round"
+          strokeDasharray={C}
+          strokeDashoffset={done ? 0 : C * (1 - progress)}
+          className={`transition-[stroke-dashoffset] duration-1000 ease-linear ${done ? "stroke-emerald-400" : "stroke-teal-300"}`}
+        />
+      </svg>
+      <div className="absolute inset-0 flex items-center justify-center">{children}</div>
+    </div>
+  );
+}
+
+function CheckMark() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-24 w-24 text-emerald-400" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M5 12.5l4.5 4.5L19 7.5" />
+    </svg>
+  );
+}
+
 function HelpOverlay({
   t,
   lang,
   alert,
   nurse,
   serverNow,
+  onBack,
+  onCancel,
 }: {
   t: BandStrings;
   lang: Language;
   alert: Alert;
   nurse?: Nurse;
   serverNow: number;
+  onBack: () => void;
+  onCancel: () => Promise<boolean>;
 }) {
+  const [confirming, setConfirming] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
   const nurseName = nurse ? nurseDisplayName(nurse.name, lang) : "";
   const acknowledged = alert.status === "acknowledged";
   const remaining = alert.createdAt + ETA_MS - serverNow;
+  const flaggedOk = alert.priority === 1 && residentSaysOk(alert.summary);
+
+  async function confirmCancel() {
+    setCancelling(true);
+    await onCancel();
+    setCancelling(false);
+    setConfirming(false);
+  }
 
   return (
     <div
       role="alertdialog"
       aria-live="assertive"
-      className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-6 bg-teal-950 p-8 text-center"
+      aria-label={t.helpComing}
+      className="absolute inset-0 z-20 flex flex-col items-center overflow-y-auto bg-teal-950 px-6 pt-8 pb-[max(1.5rem,env(safe-area-inset-bottom))] text-center"
     >
-      <div className="text-7xl" aria-hidden>
-        {acknowledged ? "🚶" : "🤝"}
+      <div className="flex w-full flex-1 flex-col items-center justify-center gap-5">
+        <h1 className="text-4xl font-bold leading-tight">
+          {acknowledged && nurseName ? fill(t.onTheWay, { nurse: nurseName }) : t.helpComing}
+        </h1>
+
+        <EtaRing progress={etaProgress(alert, serverNow)} done={acknowledged}>
+          {acknowledged ? (
+            <CheckMark />
+          ) : (
+            <span className="text-6xl font-bold tabular-nums">{formatMmSs(Math.max(0, remaining))}</span>
+          )}
+        </EtaRing>
+
+        {!acknowledged && (
+          <div className="flex flex-col items-center gap-1">
+            {nurseName && <div className="text-3xl font-semibold text-teal-100">{nurseName}</div>}
+            {remaining <= 0 && <div className="text-xl text-teal-200">{t.anyMoment}</div>}
+          </div>
+        )}
+
+        {alert.type === "voice" && alert.transcript && (
+          <p className="max-w-sm text-xl italic text-teal-100/70">“{alert.transcript}”</p>
+        )}
+        <p className="max-w-sm text-2xl text-teal-50">
+          {flaggedOk
+            ? t.nurseWillCheck
+            : alert.type === "voice" && alert.patientMessage
+              ? alert.patientMessage
+              : t.stayCalm}
+        </p>
       </div>
-      <h1 className="text-4xl font-bold leading-tight">
-        {acknowledged && nurseName ? fill(t.onTheWay, { nurse: nurseName }) : t.helpComing}
-      </h1>
-      {!acknowledged && (
-        <div className="text-3xl text-teal-200">
-          {nurseName && <span>{nurseName} — </span>}
-          <span className="tabular-nums">{remaining > 0 ? formatMmSs(remaining) : t.anyMoment}</span>
-        </div>
-      )}
-      {alert.type === "voice" && alert.transcript && (
-        <p className="max-w-sm text-xl italic text-teal-100/60">“{alert.transcript}”</p>
-      )}
-      <p className="max-w-sm text-2xl text-teal-100/80">
-        {alert.type === "voice" && alert.patientMessage ? alert.patientMessage : t.stayCalm}
-      </p>
+
+      <div className="mt-6 flex w-full max-w-sm flex-col gap-3">
+        {confirming ? (
+          <>
+            <div className="text-2xl font-semibold">{t.cancelConfirm}</div>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => void confirmCancel()}
+                disabled={cancelling}
+                className="min-h-16 rounded-2xl bg-white text-2xl font-bold text-black active:scale-95 disabled:opacity-60"
+              >
+                {t.yes}
+              </button>
+              <button
+                onClick={() => setConfirming(false)}
+                disabled={cancelling}
+                className="min-h-16 rounded-2xl border-2 border-teal-200 text-2xl font-bold text-white active:scale-95 disabled:opacity-60"
+              >
+                {t.no}
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            {!flaggedOk && (
+              <button
+                onClick={() => setConfirming(true)}
+                className="min-h-16 rounded-2xl bg-white text-2xl font-bold text-black active:scale-95"
+              >
+                {t.cancelRequest}
+              </button>
+            )}
+            <button
+              onClick={onBack}
+              className="min-h-16 rounded-2xl border-2 border-teal-200 text-2xl font-bold text-white active:scale-95"
+            >
+              {t.back}
+            </button>
+          </>
+        )}
+      </div>
     </div>
+  );
+}
+
+/** Slim banner on the main screen after "Back": "Help is coming · Ana · 1:42". Tap to reopen the overlay. */
+function HelpBanner({
+  t,
+  lang,
+  alert,
+  nurse,
+  serverNow,
+  onOpen,
+}: {
+  t: BandStrings;
+  lang: Language;
+  alert: Alert;
+  nurse?: Nurse;
+  serverNow: number;
+  onOpen: () => void;
+}) {
+  const nurseName = nurse ? nurseDisplayName(nurse.name, lang).replace(/^Nurse\s+/, "") : "";
+  const remaining = alert.createdAt + ETA_MS - serverNow;
+  const text =
+    alert.status === "acknowledged" && nurseName
+      ? fill(t.onTheWay, { nurse: nurseName })
+      : [t.helpComing, nurseName, remaining > 0 ? formatMmSs(remaining) : t.anyMoment].filter(Boolean).join(" · ");
+  return (
+    <button
+      onClick={onOpen}
+      className="-mx-5 -mt-5 flex min-h-14 items-center justify-center gap-2 bg-teal-500 px-4 text-lg font-semibold text-black active:bg-teal-400"
+    >
+      <span className="h-2.5 w-2.5 shrink-0 animate-pulse rounded-full bg-black" aria-hidden />
+      <span className="truncate tabular-nums">{text}</span>
+    </button>
   );
 }
 

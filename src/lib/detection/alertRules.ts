@@ -70,3 +70,9 @@ export function summaryFor(
       return "Asks for water";
   }
 }
+
+/** Appended to a P1 alert's summary when the resident taps "I'm OK – cancel" (P1s are never auto-resolved). */
+export const RESIDENT_OK_SUFFIX = " · Resident says OK";
+export function residentSaysOk(summary: string): boolean {
+  return summary.endsWith(RESIDENT_OK_SUFFIX);
+}

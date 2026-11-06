@@ -96,15 +96,48 @@ export async function sendNtfy(push: NtfyAlertPush): Promise<void> {
       ackToken,
       escalated: push.escalated,
     });
+    await postNtfy(body, push.alert.id);
+  } catch {
+    console.warn(`sendNtfy: lookup failed for alert ${push.alert.id}`);
+  }
+}
+
+/** POST a JSON message to ntfy. Never throws; logs only the alert id and the failure kind (never the topic). */
+async function postNtfy(body: object, alertId: string): Promise<void> {
+  try {
     const res = await fetch(NTFY_BASE, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
       signal: AbortSignal.timeout(NTFY_TIMEOUT_MS),
     });
-    if (!res.ok) console.warn(`sendNtfy: ntfy responded ${res.status} for alert ${push.alert.id}`);
+    if (!res.ok) console.warn(`sendNtfy: ntfy responded ${res.status} for alert ${alertId}`);
   } catch (err) {
     const kind = err instanceof Error && err.name === "TimeoutError" ? "timeout" : "request failed";
-    console.warn(`sendNtfy: ${kind} for alert ${push.alert.id}`);
+    console.warn(`sendNtfy: ${kind} for alert ${alertId}`);
   }
+}
+
+/** Pure: the "resident says they're OK" follow-up for a P1 (exported for tests). Keeps the "I'm on it" action. */
+export function buildResidentOkMessage(
+  topic: string,
+  appUrl: string | undefined,
+  push: Required<Pick<NtfyAlertPush, "alert" | "resident">> & { ackToken?: string },
+) {
+  const base = buildNtfyMessage(topic, appUrl, push);
+  return {
+    ...base,
+    title: `🟢 Room ${push.resident.room}: resident says they're OK`,
+    message: `${push.resident.name} — please still check.\n${push.alert.summary}`,
+    priority: 4,
+    tags: ["white_check_mark", "p1"],
+    ...(push.alert.status === "open" ? {} : { actions: undefined }),
+  };
+}
+
+/** Push "Room X: resident says they're OK — please still check" for a P1 the resident tried to cancel. */
+export async function sendResidentOkPush(push: Required<Pick<NtfyAlertPush, "alert" | "resident">> & { ackToken?: string }) {
+  const topic = process.env.NTFY_TOPIC;
+  if (!topic) return;
+  await postNtfy(buildResidentOkMessage(topic, process.env.NEXT_PUBLIC_APP_URL, push), push.alert.id);
 }

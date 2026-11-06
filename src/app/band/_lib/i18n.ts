@@ -37,6 +37,15 @@ export interface BandStrings {
   installTitle: string;
   installIos: string;
   installButton: string;
+  /** Help overlay: Back + "I'm OK – cancel" with a confirm step */
+  back: string;
+  cancelRequest: string;
+  cancelConfirm: string;
+  yes: string;
+  no: string;
+  nurseWillCheck: string;
+  requestCancelled: string;
+  cancelFailed: string;
 }
 
 export const STRINGS: Record<Language, BandStrings> = {
@@ -70,6 +79,14 @@ export const STRINGS: Record<Language, BandStrings> = {
     installTitle: "Keep Kijo Band on your home screen",
     installIos: "Tap Share, then “Add to Home Screen”.",
     installButton: "Install app",
+    back: "Back",
+    cancelRequest: "I'm OK – cancel",
+    cancelConfirm: "Cancel your request?",
+    yes: "Yes",
+    no: "No",
+    nurseWillCheck: "Your nurse will still check on you.",
+    requestCancelled: "Request cancelled",
+    cancelFailed: "Couldn't cancel. Please try again.",
   },
   fr: {
     loading: "Chargement…",
@@ -101,6 +118,14 @@ export const STRINGS: Record<Language, BandStrings> = {
     installTitle: "Gardez Kijo Band sur votre écran d'accueil",
     installIos: "Touchez Partager, puis « Sur l'écran d'accueil ».",
     installButton: "Installer l'app",
+    back: "Retour",
+    cancelRequest: "Ça va – annuler",
+    cancelConfirm: "Annuler votre demande ?",
+    yes: "Oui",
+    no: "Non",
+    nurseWillCheck: "L’équipe soignante viendra quand même vous voir.",
+    requestCancelled: "Demande annulée",
+    cancelFailed: "Échec de l'annulation. Réessayez.",
   },
   es: {
     loading: "Cargando…",
@@ -132,6 +157,14 @@ export const STRINGS: Record<Language, BandStrings> = {
     installTitle: "Tenga Kijo Band en su pantalla de inicio",
     installIos: "Toque Compartir y luego «Añadir a pantalla de inicio».",
     installButton: "Instalar app",
+    back: "Volver",
+    cancelRequest: "Estoy bien – cancelar",
+    cancelConfirm: "¿Cancelar su solicitud?",
+    yes: "Sí",
+    no: "No",
+    nurseWillCheck: "El personal de enfermería vendrá a verle de todos modos.",
+    requestCancelled: "Solicitud cancelada",
+    cancelFailed: "No se pudo cancelar. Inténtelo de nuevo.",
   },
 };
 
