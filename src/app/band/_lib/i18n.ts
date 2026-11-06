@@ -77,6 +77,13 @@ export interface BandStrings {
   spokenCalled: string;
   /** Settings sheet behind the language icon */
   largeText: string;
+  /** Background listening indicator + voice / motion hints */
+  listeningOn: string;
+  resumeListening: string;
+  voiceOpenSafari: string;
+  voiceDictationOff: string;
+  voiceMicBlocked: string;
+  motionDenied: string;
 }
 
 /** Each language's own name (shown and announced the same in every UI language). */
@@ -147,6 +154,12 @@ export const STRINGS: Record<Language, BandStrings> = {
     close: "Close",
     spokenCalled: "{nurse} has been called.",
     largeText: "Large text",
+    listeningOn: "Listening",
+    resumeListening: "Tap to resume listening",
+    voiceOpenSafari: "Voice works in Safari — open the link in Safari",
+    voiceDictationOff: "Turn on Siri & Dictation in Settings to use voice.",
+    voiceMicBlocked: "Allow the microphone to use voice.",
+    motionDenied: "Allow Motion & Orientation to detect falls",
   },
   fr: {
     loading: "Chargement…",
@@ -212,6 +225,12 @@ export const STRINGS: Record<Language, BandStrings> = {
     close: "Fermer",
     spokenCalled: "On a prévenu {nurse}.",
     largeText: "Grands caractères",
+    listeningOn: "À l’écoute",
+    resumeListening: "Touchez pour réactiver l’écoute",
+    voiceOpenSafari: "La voix fonctionne dans Safari — ouvrez le lien dans Safari",
+    voiceDictationOff: "Activez Siri et Dictée dans Réglages pour utiliser la voix.",
+    voiceMicBlocked: "Autorisez le micro pour utiliser la voix.",
+    motionDenied: "Autorisez Mouvement et orientation pour détecter les chutes",
   },
   es: {
     loading: "Cargando…",
@@ -277,6 +296,12 @@ export const STRINGS: Record<Language, BandStrings> = {
     close: "Cerrar",
     spokenCalled: "Hemos avisado a {nurse}.",
     largeText: "Letra grande",
+    listeningOn: "Escuchando",
+    resumeListening: "Toque para volver a escuchar",
+    voiceOpenSafari: "La voz funciona en Safari: abra el enlace en Safari",
+    voiceDictationOff: "Active Siri y Dictado en Ajustes para usar la voz.",
+    voiceMicBlocked: "Permita el micrófono para usar la voz.",
+    motionDenied: "Permita Movimiento y orientación para detectar caídas",
   },
 };
 

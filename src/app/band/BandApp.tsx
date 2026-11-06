@@ -17,7 +17,7 @@ import { LANGUAGES, LANGUAGE_NAMES, STRINGS, fill, nurseDisplayName, type BandSt
 import { FOCUS, useLargeText } from "./_lib/a11y";
 import { useSpeak, vibrateSent } from "./_lib/useSpeak";
 import { useMotionDetection } from "./_lib/useMotionDetection";
-import { useVoiceTrigger } from "./_lib/useVoiceTrigger";
+import { useVoiceTrigger, type VoiceProblem } from "./_lib/useVoiceTrigger";
 import PulseCheck from "./PulseCheck";
 import TalkButton from "./TalkButton";
 import type { ActivityEvent } from "@/lib/detection/activity";
@@ -342,16 +342,32 @@ function Band({ residentId, embedded }: { residentId: string; embedded: boolean 
 
   // ── Voice: background listening (trigger words) + the Talk button (one sentence, no trigger word) ──
   // Paused while the band is speaking so it doesn't hear itself.
+  const canSpeak = !!resident?.canSpeak;
   const voice = useVoiceTrigger({
-    enabled: started && !!resident?.canSpeak && !speaking,
+    enabled: started && canSpeak,
+    paused: speaking,
     lang,
     onTrigger: (sentence) => void postAlert("/api/triage", { transcript: sentence, language: lang }),
     onTalk: (sentence) => void postAlert("/api/triage", { transcript: sentence, language: lang }),
   });
   const onTalkTap = useCallback(() => {
     stopSpeaking(); // the resident wants to talk: stop talking to them
-    if (!voice.talk()) showToast(STRINGS[lang].voiceUnavailable);
+    if (!voice.talk()) showToast(STRINGS[lang].voiceUnavailable); // synchronous: iOS needs the tap
   }, [voice, lang, showToast, stopSpeaking]);
+  /** Language chosen (a tap): switch the UI and restart listening in the new language inside the tap. */
+  const changeLanguage = useCallback(
+    (l: Language) => {
+      setLangOverride(l);
+      if (started && canSpeak) voice.arm(l);
+    },
+    [started, canSpeak, voice],
+  );
+
+  // Fall countdown: say "Are you OK?" too (eyesight may be poor; the phone may be on the floor).
+  const fallPending = fallDeadline != null;
+  useEffect(() => {
+    if (fallPending) speak(`${STRINGS[lang].areYouOk} ${STRINGS[lang].fallDetected}`);
+  }, [fallPending, lang, speak]);
 
   // ── Start Kijo (permissions must be requested inside the tap) ──
   const requestWakeLock = useCallback(async () => {
@@ -364,27 +380,28 @@ function Band({ residentId, embedded }: { residentId: string; embedded: boolean 
     }
   }, []);
 
+  const [motionDenied, setMotionDenied] = useState(false);
   const handleStart = useCallback(async () => {
-    // iOS: must be the first await inside the user gesture.
+    // iOS: everything that needs the user gesture is CALLED synchronously here, before any await —
+    // the motion permission prompt and the speech recognizer (which asks for the microphone itself).
     const DME = typeof DeviceMotionEvent !== "undefined"
       ? (DeviceMotionEvent as unknown as { requestPermission?: () => Promise<PermissionState> })
       : undefined;
+    let motionPermission: Promise<PermissionState> | null = null;
     try {
-      if (DME?.requestPermission) await DME.requestPermission();
+      motionPermission = DME?.requestPermission ? DME.requestPermission() : null;
     } catch {
-      // Denied or not in a gesture; motion detection (Checkpoint 3) will be unavailable.
+      motionPermission = Promise.resolve("denied");
     }
-    if (resident?.canSpeak && navigator.mediaDevices?.getUserMedia) {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        stream.getTracks().forEach((tr) => tr.stop()); // permission only; nothing is recorded
-      } catch {
-        // Mic denied: buttons still work.
-      }
+    if (canSpeak) voice.arm();
+    if (motionPermission) {
+      const state = await motionPermission.catch(() => "denied" as PermissionState);
+      if (process.env.NODE_ENV !== "production") console.debug(`[motion] permission ${state}`);
+      setMotionDenied(state !== "granted"); // falls can't be detected; buttons still work
     }
     await requestWakeLock();
     setStarted(true);
-  }, [resident?.canSpeak, requestWakeLock]);
+  }, [canSpeak, voice, requestWakeLock]);
 
   useEffect(() => {
     if (!started) return;
@@ -422,7 +439,7 @@ function Band({ residentId, embedded }: { residentId: string; embedded: boolean 
           {t.start}
         </button>
         <div className="text-xl text-slate-400">{t.startHint}</div>
-        <LanguageSwitch t={t} lang={lang} onChange={setLangOverride} />
+        <LanguageSwitch t={t} lang={lang} onChange={changeLanguage} />
         <LargeTextSwitch t={t} on={largeText} onChange={setLargeText} />
         <InstallHint t={t} />
       </div>
@@ -467,6 +484,18 @@ function Band({ residentId, embedded }: { residentId: string; embedded: boolean 
           </div>
         </header>
 
+        <VoiceStatus
+          t={t}
+          canSpeak={canSpeak}
+          listening={voice.listening}
+          talking={voice.talking}
+          paused={speaking}
+          needsTap={voice.needsTap}
+          problem={voice.problem}
+          motionDenied={motionDenied && !embedded}
+          onResume={() => voice.arm()}
+        />
+
         {/* Center: tap and talk */}
         <div className="flex flex-1 items-center justify-center py-2">
           <TalkButton
@@ -510,7 +539,7 @@ function Band({ residentId, embedded }: { residentId: string; embedded: boolean 
           <SettingsSheet
             t={t}
             lang={lang}
-            onLang={setLangOverride}
+            onLang={changeLanguage}
             largeText={largeText}
             onLargeText={setLargeText}
             onClose={() => setSettingsOpen(false)}
@@ -537,6 +566,75 @@ function Band({ residentId, embedded }: { residentId: string; embedded: boolean 
         />
       )}
     </>
+  );
+}
+
+/**
+ * One line under the header: "● Listening" while background listening is on, a "Tap to resume
+ * listening" button when iOS stopped it, or a hint when voice / fall detection can't work here.
+ */
+function VoiceStatus({
+  t,
+  canSpeak,
+  listening,
+  talking,
+  paused,
+  needsTap,
+  problem,
+  motionDenied,
+  onResume,
+}: {
+  t: BandStrings;
+  canSpeak: boolean;
+  listening: boolean;
+  talking: boolean;
+  paused: boolean;
+  needsTap: boolean;
+  problem: VoiceProblem | null;
+  motionDenied: boolean;
+  onResume: () => void;
+}) {
+  const hint = canSpeak && problem
+    ? {
+        unsupported: t.voiceUnavailable,
+        "open-in-safari": t.voiceOpenSafari,
+        "dictation-off": t.voiceDictationOff,
+        "mic-blocked": t.voiceMicBlocked,
+      }[problem]
+    : null;
+  return (
+    <div className="flex min-h-10 flex-col items-center gap-2" role="status" aria-live="polite">
+      {canSpeak && !problem && needsTap && !talking && (
+        <button
+          onClick={onResume}
+          className={`flex min-h-14 items-center gap-3 rounded-full bg-amber-300 px-6 text-xl font-semibold text-black active:scale-95 ${FOCUS}`}
+        >
+          <MicGlyph />
+          {t.resumeListening}
+        </button>
+      )}
+      {canSpeak && !problem && !needsTap && (listening || paused) && !talking && (
+        <div className="flex items-center gap-2 text-xl text-emerald-300">
+          <span className="relative flex h-3 w-3" aria-hidden>
+            <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60 motion-safe:animate-ping" />
+            <span className="relative inline-flex h-3 w-3 rounded-full bg-emerald-400" />
+          </span>
+          <MicGlyph />
+          {t.listeningOn}
+        </div>
+      )}
+      {hint && <p className="text-center text-xl text-amber-200">{hint}</p>}
+      {motionDenied && <p className="text-center text-xl text-amber-200">{t.motionDenied}</p>}
+    </div>
+  );
+}
+
+function MicGlyph() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
+      <rect x="9" y="3" width="6" height="11" rx="3" />
+      <path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21" />
+    </svg>
   );
 }
 
