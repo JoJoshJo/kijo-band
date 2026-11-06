@@ -46,6 +46,24 @@ export interface BandStrings {
   nurseWillCheck: string;
   requestCancelled: string;
   cancelFailed: string;
+  /** Camera pulse check (bonus) */
+  checkPulse: string;
+  pulseInstructions: string;
+  pulseNoTorch: string;
+  pulseStart: string;
+  pulseCover: string;
+  pulseHoldStill: string;
+  pulseSignal: string;
+  qualityGood: string;
+  qualityFair: string;
+  qualityPoor: string;
+  pulseTryAgain: string;
+  pulseSent: string;
+  pulseDisclaimer: string;
+  pulseNoCamera: string;
+  pulseDone: string;
+  pulseRetry: string;
+  measured: string;
 }
 
 export const STRINGS: Record<Language, BandStrings> = {
@@ -87,6 +105,23 @@ export const STRINGS: Record<Language, BandStrings> = {
     nurseWillCheck: "Your nurse will still check on you.",
     requestCancelled: "Request cancelled",
     cancelFailed: "Couldn't cancel. Please try again.",
+    checkPulse: "Check pulse",
+    pulseInstructions: "Cover the back camera and flash with your fingertip",
+    pulseNoTorch: "No flash control on this phone — use a bright room and press lightly.",
+    pulseStart: "Start",
+    pulseCover: "Cover the camera with your fingertip",
+    pulseHoldStill: "Hold still…",
+    pulseSignal: "Signal",
+    qualityGood: "Good",
+    qualityFair: "Fair",
+    qualityPoor: "Weak",
+    pulseTryAgain: "Try again — hold still",
+    pulseSent: "Sent to your nurse",
+    pulseDisclaimer: "Spot check — not a medical device",
+    pulseNoCamera: "Camera not available. Allow camera access and try again.",
+    pulseDone: "Done",
+    pulseRetry: "Try again",
+    measured: "measured",
   },
   fr: {
     loading: "Chargement…",
@@ -126,6 +161,23 @@ export const STRINGS: Record<Language, BandStrings> = {
     nurseWillCheck: "L’équipe soignante viendra quand même vous voir.",
     requestCancelled: "Demande annulée",
     cancelFailed: "Échec de l'annulation. Réessayez.",
+    checkPulse: "Prendre le pouls",
+    pulseInstructions: "Couvrez la caméra arrière et le flash avec le bout du doigt",
+    pulseNoTorch: "Pas de contrôle du flash sur ce téléphone — placez-vous dans une pièce bien éclairée et appuyez légèrement.",
+    pulseStart: "Commencer",
+    pulseCover: "Couvrez la caméra avec le bout du doigt",
+    pulseHoldStill: "Ne bougez pas…",
+    pulseSignal: "Signal",
+    qualityGood: "Bon",
+    qualityFair: "Moyen",
+    qualityPoor: "Faible",
+    pulseTryAgain: "Réessayez — ne bougez pas",
+    pulseSent: "Envoyé à l’équipe soignante",
+    pulseDisclaimer: "Mesure ponctuelle — pas un dispositif médical",
+    pulseNoCamera: "Caméra indisponible. Autorisez l’accès à la caméra et réessayez.",
+    pulseDone: "Terminé",
+    pulseRetry: "Réessayer",
+    measured: "mesuré",
   },
   es: {
     loading: "Cargando…",
@@ -165,6 +217,23 @@ export const STRINGS: Record<Language, BandStrings> = {
     nurseWillCheck: "El personal de enfermería vendrá a verle de todos modos.",
     requestCancelled: "Solicitud cancelada",
     cancelFailed: "No se pudo cancelar. Inténtelo de nuevo.",
+    checkPulse: "Tomar el pulso",
+    pulseInstructions: "Cubra la cámara trasera y el flash con la yema del dedo",
+    pulseNoTorch: "Este teléfono no permite usar el flash — póngase en un lugar bien iluminado y presione suavemente.",
+    pulseStart: "Empezar",
+    pulseCover: "Cubra la cámara con la yema del dedo",
+    pulseHoldStill: "No se mueva…",
+    pulseSignal: "Señal",
+    qualityGood: "Buena",
+    qualityFair: "Regular",
+    qualityPoor: "Débil",
+    pulseTryAgain: "Inténtelo de nuevo — no se mueva",
+    pulseSent: "Enviado al personal de enfermería",
+    pulseDisclaimer: "Medición puntual — no es un dispositivo médico",
+    pulseNoCamera: "Cámara no disponible. Permita el acceso a la cámara e inténtelo de nuevo.",
+    pulseDone: "Listo",
+    pulseRetry: "Reintentar",
+    measured: "medido",
   },
 };
 

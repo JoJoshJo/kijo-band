@@ -16,12 +16,14 @@ import {
 import { LANGUAGES, STRINGS, fill, nurseDisplayName, type BandStrings } from "./_lib/i18n";
 import { useMotionDetection } from "./_lib/useMotionDetection";
 import { useVoiceTrigger } from "./_lib/useVoiceTrigger";
+import PulseCheck from "./PulseCheck";
 import { promptInstall, useBandPwa, useInstallKind, useStoredResidentId } from "./_lib/pwa";
 
 const POLL_MS = 1000;
 const HEARTBEAT_MS = 2000;
 const FALL_CANCEL_S = 10;
 const ETA_MS = 2 * 60_000;
+const MEASURED_HOLD_MS = 60_000; // a camera pulse reading replaces the simulated HR for 1 min
 
 const fetcher = async (url: string): Promise<StateResponse> => {
   const res = await fetch(url, { cache: "no-store" });
@@ -106,6 +108,10 @@ function Band({ residentId, embedded }: { residentId: string; embedded: boolean 
   const [hrOverride, setHrOverride] = useState<number | null>(null); // embedded slider
   const baseHrRef = useRef<number | null>(null);
   const hrOverrideRef = useRef<number | null>(null);
+  // Camera pulse check result: held for MEASURED_HOLD_MS so the nurse sees the real number.
+  const measuredRef = useRef<{ bpm: number; until: number } | null>(null);
+  const [measuredUntil, setMeasuredUntil] = useState(0);
+  const [pulseOpen, setPulseOpen] = useState(false);
   useEffect(() => {
     hrOverrideRef.current = hrOverride;
   }, [hrOverride]);
@@ -116,6 +122,11 @@ function Band({ residentId, embedded }: { residentId: string; embedded: boolean 
   useEffect(() => {
     const id = setInterval(() => {
       setNow(Date.now());
+      const measured = measuredRef.current;
+      if (measured && Date.now() < measured.until) {
+        setHr(measured.bpm);
+        return;
+      }
       const base = baseHrRef.current;
       if (base == null) return;
       setHr((prev) => {
@@ -170,6 +181,22 @@ function Band({ residentId, embedded }: { residentId: string; embedded: boolean 
       }
     },
     [lang, mutate, residentId, showToast],
+  );
+
+  const onPulseResult = useCallback(
+    (bpm: number) => {
+      const until = Date.now() + MEASURED_HOLD_MS;
+      measuredRef.current = { bpm, until };
+      setMeasuredUntil(until);
+      setHr(bpm);
+      // Send now; the 2 s heartbeat keeps sending it while it is held.
+      void fetch("/api/heartbeat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ residentId, heartRate: bpm }),
+      }).catch(() => {});
+    },
+    [residentId],
   );
 
   /** POST to /api/alert or /api/triage with the shared 10s client-side limit and error toasts. */
@@ -394,7 +421,10 @@ function Band({ residentId, embedded }: { residentId: string; embedded: boolean 
               ♥
             </span>
             <span className="text-4xl font-bold tabular-nums">{hr ?? "--"}</span>
-            <span className="text-base text-slate-400">{t.bpm}</span>
+            <span className="flex flex-col text-base leading-tight text-slate-400">
+              {t.bpm}
+              {measuredUntil > now && <span className="text-xs text-emerald-300">{t.measured}</span>}
+            </span>
           </div>
         </header>
 
@@ -422,6 +452,16 @@ function Band({ residentId, embedded }: { residentId: string; embedded: boolean 
           />
         </div>
 
+        <button
+          onClick={() => setPulseOpen(true)}
+          className="flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-slate-800 text-xl font-semibold active:scale-95 active:bg-slate-700"
+        >
+          <span className="text-red-500" aria-hidden>
+            ♥
+          </span>
+          {t.checkPulse}
+        </button>
+
         <div className="min-h-7 text-center text-lg text-slate-300" aria-live="polite">
           {sending ? t.sending : toast ?? (error ? t.offline : "")}
         </div>
@@ -434,6 +474,8 @@ function Band({ residentId, embedded }: { residentId: string; embedded: boolean 
         )}
 
         <LanguageSwitch lang={lang} onChange={setLangOverride} />
+
+        {pulseOpen && <PulseCheck t={t} onClose={() => setPulseOpen(false)} onResult={onPulseResult} />}
 
         {fallSecondsLeft != null && (
           <FallCountdown t={t} secondsLeft={fallSecondsLeft} onCancel={() => setFallDeadline(null)} />
