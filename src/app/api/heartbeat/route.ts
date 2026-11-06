@@ -1,3 +1,4 @@
+import { MOTION_STATES } from "@/lib/detection/activity";
 import { getSql } from "@/lib/db";
 import { INVALID_JSON, isHeartRate, isObject, isResidentId, readJson } from "../alert/validate";
 
@@ -18,8 +19,10 @@ function allow(residentId: string, now: number): boolean {
   return true;
 }
 
-// POST /api/heartbeat { residentId, heartRate, moved? } → 204
-// Updates ONLY residents.heart_rate, and residents.last_motion_at when the band saw movement.
+// POST /api/heartbeat { residentId, heartRate, moved?, motionState? } → 204
+// Updates ONLY residents.heart_rate, and residents.last_motion_at when the band saw movement
+// (moved: true, or motionState "moving"). motionState is validated but not stored yet: residents has no
+// motion_state column (Session A owns the schema).
 export async function POST(request: Request) {
   const b = await readJson(request);
   if (b === INVALID_JSON) return Response.json({ error: "Invalid JSON" }, { status: 400 });
@@ -30,6 +33,10 @@ export async function POST(request: Request) {
     return Response.json({ error: "Invalid moved (boolean)" }, { status: 400 });
   }
 
+  if (b.motionState !== undefined && !(MOTION_STATES as readonly unknown[]).includes(b.motionState)) {
+    return Response.json({ error: `Invalid motionState (${MOTION_STATES.join(" | ")})` }, { status: 400 });
+  }
+
   const now = Date.now();
   if (!allow(b.residentId, now)) {
     return Response.json({ error: "Too many heartbeats" }, { status: 429, headers: { "Retry-After": "1" } });
@@ -37,7 +44,7 @@ export async function POST(request: Request) {
 
   try {
     const sql = getSql();
-    const moved = b.moved === true;
+    const moved = b.moved === true || b.motionState === "moving";
     const rows = await sql`
       UPDATE residents
       SET heart_rate = ${b.heartRate},

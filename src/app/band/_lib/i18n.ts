@@ -64,6 +64,10 @@ export interface BandStrings {
   pulseDone: string;
   pulseRetry: string;
   measured: string;
+  /** Live activity state chip */
+  motionMoving: string;
+  motionStill: string;
+  motionLying: string;
 }
 
 export const STRINGS: Record<Language, BandStrings> = {
@@ -122,6 +126,9 @@ export const STRINGS: Record<Language, BandStrings> = {
     pulseDone: "Done",
     pulseRetry: "Try again",
     measured: "measured",
+    motionMoving: "Moving",
+    motionStill: "Still",
+    motionLying: "Lying down",
   },
   fr: {
     loading: "Chargement…",
@@ -178,6 +185,9 @@ export const STRINGS: Record<Language, BandStrings> = {
     pulseDone: "Terminé",
     pulseRetry: "Réessayer",
     measured: "mesuré",
+    motionMoving: "En mouvement",
+    motionStill: "Au repos",
+    motionLying: "Allongé·e",
   },
   es: {
     loading: "Cargando…",
@@ -234,6 +244,9 @@ export const STRINGS: Record<Language, BandStrings> = {
     pulseDone: "Listo",
     pulseRetry: "Reintentar",
     measured: "medido",
+    motionMoving: "En movimiento",
+    motionStill: "En reposo",
+    motionLying: "Acostado/a",
   },
 };
 
