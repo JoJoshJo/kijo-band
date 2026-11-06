@@ -9,7 +9,7 @@ import {
   resample,
   type PulseSample,
 } from "@/lib/detection/pulse";
-import { FOCUS } from "./_lib/a11y";
+import { FOCUS, ICON } from "./_lib/a11y";
 import { Heartbeat } from "@phosphor-icons/react";
 import type { BandStrings } from "./_lib/i18n";
 
@@ -200,7 +200,7 @@ export default function PulseCheck({
       className="fixed inset-0 z-[25] flex flex-col items-center overflow-y-auto bg-bg px-6 pt-8 pb-[max(1.5rem,env(safe-area-inset-bottom))] text-center"
     >
       <h1 className="flex items-center gap-3 text-display font-semibold">
-        <Heartbeat size={36} weight="fill" className="text-brand" aria-hidden />
+        <Heartbeat size={ICON.heading} weight="fill" className="text-brand" aria-hidden />
         {t.checkPulse}
       </h1>
       <p className="mt-1 text-xl text-muted">{t.pulseDisclaimer}</p>
