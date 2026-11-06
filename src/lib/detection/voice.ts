@@ -90,7 +90,9 @@ export const BASE_MAX_WORDS = 6;
 /** Base words (normalized) by need — trigger without the wake word in a short utterance. */
 export const BASE_PHRASES: Record<Language, Record<"help" | "water" | "toilet" | "pain", string[]>> = {
   en: {
-    help: ["help", "help me", "i need help", "emergency", "nurse"],
+    // Mishearings of "help" seen from recognizers (short utterances only, like every base word):
+    // "helps", "hel", "hell me". Whole-word match, so "hello", "health", "helpful", "shell" never count.
+    help: ["help", "help me", "i need help", "emergency", "nurse", "helps", "hel", "hell me"],
     water: ["water", "thirsty"],
     toilet: ["toilet", "bathroom", "restroom", "loo"],
     pain: ["pain", "it hurts", "hurts", "im in pain"],

@@ -97,3 +97,16 @@ test("band copy: no emoji, no dashes, sentence case, polite FR/ES", async () => 
     }
   }
 });
+
+test("'help' mishearings count in short utterances; look-alike words never do", () => {
+  for (const t of ["helps", "hel", "hell me", "help help", "Help me!", "helps please"]) {
+    const d = decideUtterance(t, "en");
+    assert.ok(d.action === "send" && d.kind === "base", `"${t}" should trigger`);
+  }
+  for (const t of ["hello", "health", "helpful", "shell", "hell", "hello there", "my health is fine", "that was helpful", "a shell on the beach"]) {
+    const d = decideUtterance(t, "en");
+    assert.ok(d.action !== "send", `"${t}" must not trigger`);
+  }
+  // long chatter with a mishearing → still ignored
+  assert.equal(decideUtterance("he said helps are on the way to the house", "en").action, "ignore");
+});

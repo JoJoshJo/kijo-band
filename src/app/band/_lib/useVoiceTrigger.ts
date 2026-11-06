@@ -44,6 +44,9 @@ const INITIAL: VoiceSnapshot = {
   decision: "",
   restarts: 0,
   lastError: "",
+  alternatives: "",
+  deafGapMs: 0,
+  bias: "off",
 };
 
 /**

@@ -633,8 +633,10 @@ function VoiceDebug({
     ["interim", snap.lastInterim || "—"],
     ["final", snap.lastFinal || "—"],
     ["decision", rateLimited ? "rate-limited (Already sent)" : snap.decision || "—"],
+    ["alts", snap.alternatives || "—"],
     ["triage", triage ? `${triage.result} · ${triage.ms} ms` : "—"],
-    ["restarts", `${snap.restarts} · last error ${snap.lastError || "—"}`],
+    ["restarts", `${snap.restarts} · deaf gap ${snap.deafGapMs} ms · last error ${snap.lastError || "—"}`],
+    ["bias", snap.bias],
   ];
   return (
     <section aria-label="Voice debug" className="rounded-card border border-line bg-surface p-3 font-mono text-base">

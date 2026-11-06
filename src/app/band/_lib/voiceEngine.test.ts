@@ -34,7 +34,7 @@ class FakeClock implements Clock {
 }
 
 /** Every recognizer the engine creates; `live` = started and not yet ended/aborted. */
-function harness(opts: { ios?: IosContext; throwOnStart?: () => boolean } = {}) {
+function harness(opts: { ios?: IosContext; throwOnStart?: () => boolean; phraseCtor?: (new (p: string, b: number) => unknown) | null } = {}) {
   const clock = new FakeClock();
   const recs: FakeRec[] = [];
   let maxLive = 0;
@@ -49,6 +49,8 @@ function harness(opts: { ios?: IosContext; throwOnStart?: () => boolean } = {}) 
     onerror: ((e: { error: string }) => void) | null = null;
     onresult: ((e: RecognitionEventLike) => void) | null = null;
     startCalls = 0;
+    maxAlternatives = 1;
+    phrases: unknown = [];
     aborted = false;
     live = false;
     results: { isFinal: boolean; 0: { transcript: string } }[] = [];
@@ -97,7 +99,7 @@ function harness(opts: { ios?: IosContext; throwOnStart?: () => boolean } = {}) 
       onWake: () => sent.wake++,
       onChange: (s) => (snap = s),
     },
-    { clock, debug: true, ios: () => opts.ios ?? null, engineName: "fake" },
+    { clock, debug: true, ios: () => opts.ios ?? null, engineName: "fake", phraseCtor: opts.phraseCtor ?? null },
   );
   const last = () => recs[recs.length - 1];
   return { clock, recs, engine, sent, last, snap: () => snap ?? engine.snapshot, maxLive: () => maxLive };
@@ -169,25 +171,40 @@ test("iOS: engine ends without a final → the last interim is used, then listen
   h.clock.advance(1000);
   h.last().end();
   assert.deepEqual(h.sent.trigger, ["help me"]);
-  assert.equal(h.snap().state, "restarting");
-  h.clock.advance(300);
-  assert.equal(h.recs.length, 2);
+  assert.equal(h.recs.length, 2, "healthy end → restarted at once (0 ms)");
 });
 
-test("healthy sessions restart after 300 ms forever (no halt)", () => {
+test("healthy sessions restart at 0 ms forever (no halt); deaf gap is measured", () => {
   const h = harness();
   h.engine.setEnabled(true);
   for (let i = 0; i < 20; i++) {
     h.last().began();
-    h.clock.advance(3500); // ran ≥ 3 s
+    h.clock.advance(3500);
     h.last().end();
-    h.clock.advance(299);
-    assert.equal(h.recs.length, i + 1, "not before 300 ms");
-    h.clock.advance(1);
-    assert.equal(h.recs.length, i + 2);
+    assert.equal(h.recs.length, i + 2, "new recognizer started in the same tick");
+    h.clock.advance(40); // engine takes 40 ms to fire `start`
   }
+  h.last().began();
   assert.equal(h.snap().needsTap, false);
   assert.equal(h.snap().restarts, 20);
+  assert.equal(h.snap().deafGapMs, 40);
+});
+
+test("no-speech after a while is healthy (0 ms); network error backs off", () => {
+  const h = harness();
+  h.engine.setEnabled(true);
+  h.last().began();
+  h.clock.advance(8000);
+  h.last().error("no-speech");
+  h.last().end();
+  assert.equal(h.recs.length, 2);
+  h.last().began();
+  h.clock.advance(8000);
+  h.last().error("network");
+  h.last().end();
+  assert.equal(h.recs.length, 2, "real error: not at once");
+  h.clock.advance(300);
+  assert.equal(h.recs.length, 3);
 });
 
 test("failed restarts back off 300 ms → 1 s → 2 s, then after 5 in a minute: Tap to resume listening", () => {
@@ -242,8 +259,9 @@ test("aborted / no-speech / network: retried; failures spread over > 1 min never
   for (const code of ["aborted", "no-speech", "network", "aborted"]) failOnce(code);
   h.last().began();
   h.clock.advance(61_000); // a healthy minute
+  const before = h.recs.length;
   h.last().end();
-  waitForNewRec();
+  assert.equal(h.recs.length, before + 1, "healthy → 0 ms");
   for (const code of ["no-speech", "network", "aborted", "aborted"]) failOnce(code);
   assert.equal(h.snap().needsTap, false);
   assert.equal(h.snap().state, "starting");
@@ -466,4 +484,119 @@ test("transcripts stay out of the snapshot unless debug is on", () => {
   recs[0].onresult?.({ resultIndex: 0, results: [{ isFinal: true, 0: { transcript: "water" } }] });
   assert.equal(e.snapshot.lastFinal, "");
   assert.equal(e.snapshot.decision, "base word → sent");
+});
+
+// ── Listening accuracy ──
+
+/** Emit one result with several alternatives (best first) at `index`. */
+function emit(r: RecognitionLike, index: number, alts: string[], isFinal: boolean) {
+  const result = Object.assign(Object.fromEntries(alts.map((t, k) => [k, { transcript: t }])), { isFinal, length: alts.length });
+  const results = Object.assign([] as unknown[], { [index]: result, length: index + 1 }) as unknown as RecognitionEventLike["results"];
+  r.onresult?.({ resultIndex: index, results });
+}
+
+test("asks for 5 alternatives", () => {
+  const h = harness();
+  h.engine.setEnabled(true);
+  assert.equal((h.last() as unknown as { maxAlternatives: number }).maxAlternatives, 5);
+});
+
+test("final: a lower alternative that triggers is used ('hello' heard, 'help' 2nd) and shown in debug", () => {
+  const h = harness();
+  h.engine.setEnabled(true);
+  h.last().began();
+  emit(h.last(), 0, ["hello", "help", "yelp"], true);
+  assert.deepEqual(h.sent.trigger, ["help"]);
+  assert.equal(h.snap().decision, "base word → sent (alternative 2)");
+  assert.equal(h.snap().alternatives, "hello | help ✓ | yelp");
+});
+
+test("an emergency in any alternative beats a base word", () => {
+  const h = harness();
+  h.engine.setEnabled(true);
+  h.last().began();
+  emit(h.last(), 0, ["help", "I fell"], true);
+  assert.deepEqual(h.sent.trigger, ["I fell"]);
+});
+
+test("interim emergency fires at once; its final does not fire again", () => {
+  const h = harness();
+  h.engine.setEnabled(true);
+  h.last().began();
+  emit(h.last(), 0, ["I fell"], false);
+  assert.deepEqual(h.sent.trigger, ["I fell"]);
+  assert.equal(h.snap().decision, "emergency → sent (interim)");
+  emit(h.last(), 0, ["I fell down"], true);
+  assert.deepEqual(h.sent.trigger, ["I fell"]);
+});
+
+test("interim base word fires after 300 ms still; final skipped; next utterance at index 0 still works", () => {
+  const h = harness();
+  h.engine.setEnabled(true);
+  h.last().began();
+  emit(h.last(), 0, ["help"], false);
+  h.clock.advance(299);
+  assert.deepEqual(h.sent.trigger, []);
+  h.clock.advance(1);
+  assert.deepEqual(h.sent.trigger, ["help"]);
+  emit(h.last(), 0, ["help"], true);
+  assert.deepEqual(h.sent.trigger, ["help"]);
+  h.clock.advance(6000);
+  emit(h.last(), 0, ["water"], true); // Android: the next utterance restarts at index 0
+  assert.deepEqual(h.sent.trigger, ["help", "water"]);
+});
+
+test("interim 'water…' that grows into long chatter is not sent", () => {
+  const h = harness();
+  h.engine.setEnabled(true);
+  h.last().began();
+  emit(h.last(), 0, ["water"], false);
+  h.clock.advance(150);
+  emit(h.last(), 0, ["water in this glass"], false);
+  h.clock.advance(150);
+  emit(h.last(), 0, ["water in this glass is too cold today"], false);
+  h.clock.advance(1000);
+  emit(h.last(), 0, ["water in this glass is too cold today"], true);
+  assert.deepEqual(h.sent.trigger, []);
+  assert.equal(h.snap().decision, "ignored: too long");
+});
+
+test("'Kijo …' interim waits for the final", () => {
+  const h = harness();
+  h.engine.setEnabled(true);
+  h.last().began();
+  emit(h.last(), 0, ["Kijo water"], false);
+  h.clock.advance(1000);
+  assert.deepEqual(h.sent.trigger, []);
+  emit(h.last(), 0, ["Kijo water please"], true);
+  assert.deepEqual(h.sent.trigger, ["water please"]);
+});
+
+test("phrase biasing: set where supported (per language), skipped silently otherwise", () => {
+  const made: [string, number][] = [];
+  const Phrase = class {
+    constructor(p: string, b: number) {
+      made.push([p, b]);
+    }
+  };
+  const h = harness({ phraseCtor: Phrase });
+  h.engine.setLang("fr");
+  h.engine.setEnabled(true);
+  assert.equal((h.last() as unknown as { phrases: unknown[] }).phrases.length, made.length);
+  assert.ok(made.some(([p]) => p === "Kijo") && made.some(([p]) => p === "au secours"));
+  assert.equal(h.snap().bias, "on");
+  const none = harness();
+  none.engine.setEnabled(true);
+  assert.equal(none.snap().bias, "off");
+});
+
+test("engine refuses phrases → restart at once without them, not counted as a failure", () => {
+  const h = harness({ phraseCtor: class {} as unknown as new (p: string, b: number) => unknown });
+  h.engine.setEnabled(true);
+  h.last().began();
+  h.last().error("phrases-not-supported");
+  h.last().end();
+  assert.equal(h.recs.length, 2, "restarted at once");
+  assert.deepEqual((h.last() as unknown as { phrases: unknown[] }).phrases, [], "no phrases this time");
+  assert.equal(h.snap().bias, "unsupported");
 });

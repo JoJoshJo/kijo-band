@@ -1,5 +1,5 @@
 import type { Language } from "@/lib/types";
-import { MAX_TRANSCRIPT_CHARS, decideUtterance, findWakeWord, normalize } from "@/lib/detection/voice";
+import { MAX_TRANSCRIPT_CHARS, decideUtterance, findWakeWord, normalize, type VoiceDecision } from "@/lib/detection/voice";
 import { SPEECH_LANG } from "./speechLang";
 
 /**
@@ -24,7 +24,9 @@ import { SPEECH_LANG } from "./speechLang";
 // ── Minimal Web Speech API typings (not in TypeScript's DOM lib) ──
 interface ResultLike {
   isFinal: boolean;
-  0: { transcript: string };
+  /** number of alternatives (maxAlternatives) */
+  length?: number;
+  [alt: number]: { transcript: string };
 }
 export interface RecognitionEventLike {
   resultIndex: number;
@@ -38,6 +40,9 @@ export interface RecognitionLike {
   onend: (() => void) | null;
   onerror: ((e: { error: string }) => void) | null;
   onresult: ((e: RecognitionEventLike) => void) | null;
+  maxAlternatives?: number;
+  /** Chrome contextual biasing (experimental): SpeechRecognitionPhrase[] */
+  phrases?: unknown;
   start(): void;
   abort(): void;
 }
@@ -73,6 +78,12 @@ export interface VoiceSnapshot {
   decision: string;
   restarts: number;
   lastError: string;
+  /** Debug only: every alternative of the last result, the matched one marked ✓ */
+  alternatives: string;
+  /** Time from the last recognizer end to the next start (ms) */
+  deafGapMs: number;
+  /** Phrase biasing: on / off (no API) / unsupported (engine refused it) */
+  bias: "on" | "off" | "unsupported";
 }
 
 export interface VoiceEvents {
@@ -95,6 +106,19 @@ export const TALK_TIMEOUT_MS = 10_000;
 export const TALK_SETTLE_MS = 1500; // tap and talk: interim unchanged this long → take it (iOS rarely finalises)
 export const WAKE_CAPTURE_MS = 8000;
 export const DEDUPE_MS = 5000;
+export const MAX_ALTERNATIVES = 5;
+/** A healthy end ("end"/"no-speech" after a session that ran this long or heard something) restarts at 0 ms. */
+export const MIN_HEALTHY_MS = 500;
+/** Interim base word: fire once the interim has held still this long (keeps the ≤ 6-word rule). */
+export const INTERIM_BASE_SETTLE_MS = 300;
+
+/** Phrase biasing per language (Chrome SpeechRecognition.phrases); moderate boosts, MDN warns 9–10 over-match. */
+export const BIAS_PHRASES: Record<Language, [string, number][]> = {
+  en: [["Kijo", 5], ["help", 3], ["help me", 3], ["water", 3], ["toilet", 3], ["pain", 3]],
+  fr: [["Kijo", 5], ["aide", 3], ["aidez-moi", 3], ["au secours", 3], ["eau", 3], ["toilettes", 3], ["douleur", 3], ["j'ai mal", 3]],
+  es: [["Kijo", 5], ["ayuda", 3], ["ayúdeme", 3], ["agua", 3], ["baño", 3], ["dolor", 3], ["me duele", 3]],
+};
+type PhraseCtor = new (phrase: string, boost: number) => unknown;
 
 const clean = (t: string) => t.replace(/\s+/g, " ").trim().slice(0, MAX_TRANSCRIPT_CHARS);
 
@@ -114,11 +138,37 @@ interface Session {
   interim: string;
   /** "index:text" of finals already handled (some engines re-deliver them; others restart at index 0) */
   seenFinals: Set<string>;
+  /** result indexes already sent from an interim: their final is skipped once */
+  firedFromInterim: Set<number>;
+  interimAlts: string[];
+  interimIdx: number;
   /** normalized text already acted on from an interim; the matching final is skipped */
   consumed: string | null;
   error: string | null;
   watchdog: unknown;
 }
+
+/** All alternatives of one result, best first. */
+function alternativesOf(r: ResultLike): string[] {
+  const n = Math.max(1, Math.min(r.length ?? 1, MAX_ALTERNATIVES));
+  const out: string[] = [];
+  for (let k = 0; k < n; k++) if (r[k]?.transcript) out.push(r[k].transcript);
+  return out.length ? out : [""];
+}
+
+/** The first alternative that triggers; emergencies beat everything, then wake word, then base word. */
+export function pickAlternative(alts: string[], lang: Language): { index: number; d: VoiceDecision } | null {
+  const ds = alts.map((a) => decideUtterance(a, lang));
+  const rank = (d: VoiceDecision) =>
+    d.action === "send" ? (d.kind === "emergency" ? 0 : d.kind === "wake" ? 1 : 2) : d.action === "ask" ? 3 : 9;
+  let best = -1;
+  ds.forEach((d, i) => {
+    if (rank(d) < 9 && (best < 0 || rank(d) < rank(ds[best]))) best = i;
+  });
+  return best < 0 ? null : { index: best, d: ds[best] };
+}
+
+const markAlts = (alts: string[], hit: number) => alts.map((a, i) => (i === hit ? `${a} ✓` : a)).join(" | ");
 
 export class VoiceEngine {
   private s: VoiceSnapshot;
@@ -134,11 +184,14 @@ export class VoiceEngine {
   private talkTimer: unknown = null;
   private settleTimer: unknown = null;
   private lastFired: { norm: string; at: number } | null = null;
+  private endedAt: number | null = null;
+  private biasRefused = false;
+  private baseSettleTimer: unknown = null;
 
   constructor(
     private Ctor: RecognitionCtor | null,
     private ev: VoiceEvents,
-    private opts: { clock?: Clock; debug?: boolean; ios?: () => IosContext; engineName?: string } = {},
+    private opts: { clock?: Clock; debug?: boolean; ios?: () => IosContext; engineName?: string; phraseCtor?: PhraseCtor | null } = {},
   ) {
     this.s = {
       state: "idle",
@@ -152,6 +205,9 @@ export class VoiceEngine {
       decision: "",
       restarts: 0,
       lastError: "",
+      alternatives: "",
+      deafGapMs: 0,
+      bias: "off",
     };
   }
 
@@ -175,6 +231,7 @@ export class VoiceEngine {
     if (!this.opts.debug) {
       delete patch.lastInterim;
       delete patch.lastFinal;
+      delete patch.alternatives;
     }
     const next = { ...this.s, ...patch };
     if ((Object.keys(patch) as (keyof VoiceSnapshot)[]).every((k) => next[k] === this.s[k])) return;
@@ -255,6 +312,7 @@ export class VoiceEngine {
     this.restartTimer = this.clear(this.restartTimer);
     this.talkTimer = this.clear(this.talkTimer);
     this.settleTimer = this.clear(this.settleTimer);
+    this.baseSettleTimer = this.clear(this.baseSettleTimer);
     this.endCapture();
     this.kill();
     this.set({ state: "idle", mode: "background" });
@@ -296,6 +354,8 @@ export class VoiceEngine {
     rec.lang = tag;
     rec.continuous = true;
     rec.interimResults = true;
+    rec.maxAlternatives = MAX_ALTERNATIVES;
+    this.setBias(rec);
     const sess: Session = {
       rec,
       tag,
@@ -306,6 +366,9 @@ export class VoiceEngine {
       heardSomething: false,
       interim: "",
       seenFinals: new Set(),
+      firedFromInterim: new Set(),
+      interimAlts: [],
+      interimIdx: -1,
       consumed: null,
       error: null,
       watchdog: null,
@@ -326,7 +389,9 @@ export class VoiceEngine {
       sess.startedAt = this.clock.now();
       this.everStarted = true;
       this.clear(sess.watchdog);
-      this.set({ state: "listening", needsTap: false, problem: null });
+      const gap = this.endedAt == null ? this.s.deafGapMs : Math.round(this.clock.now() - this.endedAt);
+      this.endedAt = null;
+      this.set({ state: "listening", needsTap: false, problem: null, deafGapMs: gap });
     };
     rec.onresult = (e) => {
       if (!live()) return;
@@ -334,15 +399,24 @@ export class VoiceEngine {
       let interim = "";
       for (let i = e.resultIndex; i < e.results.length; i++) {
         const r = e.results[i];
+        const alts = alternativesOf(r);
         if (!r.isFinal) {
-          interim += r[0].transcript + " ";
+          interim += alts[0] + " ";
+          sess.interimAlts = alts;
+          sess.interimIdx = i;
           continue;
         }
-        const key = `${i}:${normalize(r[0].transcript)}`;
+        const key = `${i}:${normalize(alts[0])}`;
         if (sess.seenFinals.has(key)) continue; // Android re-delivers earlier finals
         sess.seenFinals.add(key);
         sess.interim = "";
-        this.heard(sess, r[0].transcript, "final");
+        sess.interimAlts = [];
+        this.baseSettleTimer = this.clear(this.baseSettleTimer);
+        if (sess.firedFromInterim.delete(i)) {
+          this.set({ lastFinal: alts[0], decision: `${this.s.decision} (final skipped: sent from interim)` });
+          continue;
+        }
+        this.heard(sess, alts, "final");
         if (!live()) return;
       }
       if (interim.trim()) this.interim(sess, clean(interim));
@@ -350,6 +424,10 @@ export class VoiceEngine {
     rec.onerror = (e) => {
       if (!live()) return;
       sess.error = e.error;
+      if (e.error === "phrases-not-supported") {
+        this.biasRefused = true; // restart without biasing, not counted as a failure
+        this.set({ bias: "unsupported" });
+      }
       this.set({ lastError: e.error });
       if (e.error !== "no-speech" && e.error !== "aborted") vlog(`error: ${e.error}`);
     };
@@ -357,10 +435,11 @@ export class VoiceEngine {
       if (!live()) return;
       this.clear(sess.watchdog);
       // Ended without a final result (seen on iOS Safari): the last interim counts.
-      if (sess.interim) {
-        const text = sess.interim;
+      this.baseSettleTimer = this.clear(this.baseSettleTimer);
+      if (sess.interim && !sess.firedFromInterim.has(sess.interimIdx)) {
+        const alts = sess.interimAlts.length ? sess.interimAlts : [sess.interim];
         sess.interim = "";
-        this.heard(sess, text, "interim");
+        this.heard(sess, alts, "interim");
       }
       if (!live()) return;
       this.session = null;
@@ -393,10 +472,19 @@ export class VoiceEngine {
     }
     // A start made inside a tap that throws or never starts won't be fixed by automatic retries.
     if (sess.fromGesture && (reason === "start-threw" || reason === "no-start")) return this.halt(reason);
-    const healthy = sess.started && (sess.heardSomething || now - sess.startedAt >= HEALTHY_MS);
-    let delay = BACKOFF_MS[0];
+    // Healthy = it listened and simply ended ("end" / "no-speech", or biasing refused): restart at 0 ms.
+    // Real errors (network, aborted by the engine, never started…) back off.
+    const quietEnd = reason === "end" || reason === "no-speech";
+    const healthy =
+      reason === "phrases-not-supported" || // biasing now off: just start again
+      (sess.started && quietEnd && (sess.heardSomething || now - sess.startedAt >= MIN_HEALTHY_MS));
+    let delay = 0;
+    this.endedAt = now;
     if (healthy) {
       this.failStep = 0;
+      this.set({ state: "restarting", restarts: this.s.restarts + 1 });
+      vlog(`restart now (${reason})`);
+      return this.start(false);
     } else {
       this.failTimes = this.failTimes.filter((t) => now - t < 60_000);
       this.failTimes.push(now);
@@ -410,6 +498,24 @@ export class VoiceEngine {
       this.restartTimer = null;
       this.start(false);
     }, delay);
+  }
+
+  /** Contextual biasing where the browser has it (Chrome SpeechRecognition.phrases); skipped silently otherwise. */
+  private setBias(rec: RecognitionLike) {
+    const Phrase =
+      this.opts.phraseCtor !== undefined
+        ? this.opts.phraseCtor
+        : ((globalThis as unknown as { SpeechRecognitionPhrase?: PhraseCtor }).SpeechRecognitionPhrase ?? null);
+    if (this.biasRefused || !Phrase || !("phrases" in rec)) {
+      if (!this.biasRefused) this.set({ bias: "off" });
+      return;
+    }
+    try {
+      rec.phrases = BIAS_PHRASES[this.lang].map(([p, boost]) => new Phrase(p, boost));
+      this.set({ bias: "on" });
+    } catch {
+      this.set({ bias: "off" });
+    }
   }
 
   /** Stop retrying; one tap ("Tap to resume listening") starts again. */
@@ -440,7 +546,7 @@ export class VoiceEngine {
   private interim(sess: Session, text: string) {
     sess.interim = text;
     this.set({ lastInterim: text });
-    if (this.s.mode !== "talk") return;
+    if (this.s.mode !== "talk") return this.interimTrigger(sess);
     // Tap and talk: an interim that stops changing is the sentence (iOS may never mark it final).
     this.settleTimer = this.clear(this.settleTimer);
     this.settleTimer = this.clock.setTimeout(() => {
@@ -448,31 +554,38 @@ export class VoiceEngine {
       if (this.session !== sess || !sess.interim || this.s.mode !== "talk") return;
       const t = sess.interim;
       sess.interim = "";
-      this.heard(sess, t, "interim");
+      this.heard(sess, [t], "interim");
     }, TALK_SETTLE_MS);
   }
 
-  private heard(sess: Session, raw: string, source: "final" | "interim") {
-    const text = clean(raw);
-    if (!text) return;
+  /**
+   * One utterance (all its alternatives, best first). Talk / capture take the best alternative as the
+   * sentence; background picks the first alternative that triggers (emergency first).
+   */
+  private heard(sess: Session, rawAlts: string[], source: "final" | "interim") {
+    const alts = rawAlts.map(clean).filter(Boolean);
+    if (!alts.length) return;
+    const text = alts[0];
     const norm = normalize(text);
     if (source === "final") this.set({ lastFinal: text });
-    if (sess.consumed && (norm === sess.consumed || norm.startsWith(sess.consumed))) {
+    if (sess.consumed && alts.some((a) => { const n = normalize(a); return n === sess.consumed || n.startsWith(sess.consumed!); })) {
       sess.consumed = null; // the final of an interim we already acted on
       return;
     }
     if (source === "interim") sess.consumed = norm;
     if (this.s.mode === "talk") {
       this.settleTimer = this.clear(this.settleTimer);
+      this.set({ alternatives: markAlts(alts, 0) });
       const cmd = findWakeWord(text)?.command ?? text; // "Kijo, water" → "water"
       if (!cmd) return; // just "Kijo": keep listening for the request
       this.endTalk();
       return this.fire(cmd, "tap-and-talk → sent", (t) => this.ev.onTalk(t));
     }
+    const pick = pickAlternative(alts, sess.lang);
+    this.set({ alternatives: markAlts(alts, pick?.index ?? -1) });
     if (this.muted) {
       // The band's own speech never contains an emergency phrase, so one heard now is the resident.
-      const d = decideUtterance(text, sess.lang);
-      if (d.action === "send" && d.kind === "emergency") return this.fire(d.text, "emergency → sent", (t) => this.ev.onTrigger(t));
+      if (pick?.d.action === "send" && pick.d.kind === "emergency") return this.fire(pick.d.text, "emergency → sent", (t) => this.ev.onTrigger(t));
       return this.set({ decision: "ignored: band speaking" });
     }
     if (this.s.mode === "capture") {
@@ -481,14 +594,46 @@ export class VoiceEngine {
       this.endCapture();
       return this.fire(cmd, "wake word → sent", (t) => this.ev.onTrigger(t));
     }
-    const d = decideUtterance(text, sess.lang);
-    if (d.action === "send") return this.fire(d.text, `${d.kind === "base" ? "base word" : d.kind === "wake" ? "wake word" : "emergency"} → sent`, (t) => this.ev.onTrigger(t));
+    const d = pick?.d ?? decideUtterance(text, sess.lang);
+    const alt = pick && pick.index > 0 ? ` (alternative ${pick.index + 1})` : "";
+    if (d.action === "send") return this.fire(d.text, `${d.kind === "base" ? "base word" : d.kind === "wake" ? "wake word" : "emergency"} → sent${alt}`, (t) => this.ev.onTrigger(t));
     if (d.action === "ask") {
       this.set({ mode: "capture", decision: "wake word → Yes?" });
       this.armCapture();
       return this.ev.onWake();
     }
     this.set({ decision: d.reason === "too-long" ? "ignored: too long" : "ignored: no trigger" });
+  }
+
+  /**
+   * Background interim: an emergency phrase fires at once; a short base word fires once the interim has
+   * held still for INTERIM_BASE_SETTLE_MS (so "water in this glass is too cold" isn't sent at "water").
+   * "Kijo …" waits for the final. The final of a result sent from its interim is skipped.
+   */
+  private interimTrigger(sess: Session) {
+    const i = sess.interimIdx;
+    if (this.s.mode !== "background" || sess.firedFromInterim.has(i)) return;
+    const alts = sess.interimAlts.map(clean).filter(Boolean);
+    const pick = pickAlternative(alts, sess.lang);
+    if (!pick || pick.d.action !== "send" || pick.d.kind === "wake") return;
+    if (findWakeWord(alts[0])) return; // "Kijo …" → wait for the final
+    if (this.muted && pick.d.kind !== "emergency") return;
+    const send = () => {
+      if (this.session !== sess || sess.firedFromInterim.has(i)) return;
+      if (pick.d.action !== "send") return;
+      sess.firedFromInterim.add(i);
+      sess.interim = "";
+      this.set({ alternatives: markAlts(alts, pick.index), lastInterim: alts[0] });
+      this.fire(pick.d.text, `${pick.d.kind === "emergency" ? "emergency" : "base word"} → sent (interim)`, (t) => this.ev.onTrigger(t));
+    };
+    this.baseSettleTimer = this.clear(this.baseSettleTimer);
+    if (pick.d.kind === "emergency") return send();
+    this.baseSettleTimer = this.clock.setTimeout(() => {
+      this.baseSettleTimer = null;
+      // still the same interim, still a short base word?
+      const now = pickAlternative(sess.interimAlts.map(clean).filter(Boolean), sess.lang);
+      if (sess.interimIdx === i && now?.d.action === "send" && now.d.kind === "base") send();
+    }, INTERIM_BASE_SETTLE_MS);
   }
 
   /** Same utterance can't fire twice (engines re-deliver results; interim + final). */
@@ -511,7 +656,7 @@ export class VoiceEngine {
     if (sess?.interim) {
       const t = sess.interim;
       sess.interim = "";
-      this.heard(sess, t, "interim");
+      this.heard(sess, [t], "interim");
     }
     if (this.s.mode === "talk") this.endTalk("tap-and-talk: nothing heard");
   }
