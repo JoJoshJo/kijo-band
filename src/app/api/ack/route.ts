@@ -1,5 +1,6 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import { getSql } from "@/lib/db";
+import { clientIp, rateLimit, tooManyRequests } from "@/lib/rateLimit";
 
 const ALERT_ID_RE = /^[A-Za-z0-9-]{1,64}$/;
 const TOKEN_RE = /^[A-Za-z0-9_-]{16,128}$/;
@@ -18,6 +19,9 @@ const forbidden = () => Response.json({ error: "Invalid alert or token" }, { sta
 // Verifies the per-alert token, then open → acknowledged and the responding nurse → responding.
 // Idempotent: repeating it (or acking an already acknowledged/resolved alert) changes nothing.
 export async function POST(request: Request) {
+  // Light per-IP limit: a nurse taps once; this only slows token guessing / hammering.
+  const wait = rateLimit(`ack:${clientIp(request)}`, 30, 60_000);
+  if (wait !== null) return tooManyRequests(wait);
   const url = new URL(request.url);
   const alertId = url.searchParams.get("alert") ?? "";
   const token = url.searchParams.get("token") ?? "";

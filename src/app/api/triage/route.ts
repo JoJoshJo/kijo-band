@@ -1,13 +1,21 @@
 import { keywordTriage, MAX_TRANSCRIPT_CHARS, type TriageResult } from "@/lib/detection/voice";
 import type { Language } from "@/lib/types";
 import { LANGUAGES } from "@/app/band/_lib/i18n";
+import { clientIp, rateLimit, tooManyRequests } from "@/lib/rateLimit";
 import { createAlert, rateLimitedResponse } from "../alert/createAlert";
 import { INVALID_JSON, isHeartRate, isObject, isResidentId, readJson } from "../alert/validate";
 import { triageWithClaude } from "./claude";
 
 // POST /api/triage { residentId, transcript, language, heartRate? } → 201 { alert, triage: "claude" | "keywords" }
 // Only the single sentence that contained a trigger word is ever sent here — never audio.
+// Two limits: per IP (checked first, before any Claude call — caps API spend from one client) and
+// per resident (in createAlert). Per IP is generous because a venue's devices may share one NAT IP.
+const TRIAGE_PER_IP = 20;
+const TRIAGE_WINDOW_MS = 60_000;
+
 export async function POST(request: Request) {
+  const wait = rateLimit(`triage:${clientIp(request)}`, TRIAGE_PER_IP, TRIAGE_WINDOW_MS);
+  if (wait !== null) return tooManyRequests(wait);
   const b = await readJson(request);
   if (b === INVALID_JSON) return Response.json({ error: "Invalid JSON" }, { status: 400 });
   if (!isObject(b)) return Response.json({ error: "Body must be a JSON object" }, { status: 400 });
