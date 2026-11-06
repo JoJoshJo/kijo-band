@@ -1,0 +1,70 @@
+"use client";
+
+import { useEffect, useState } from "react";
+
+// Demo night clock: starts at 03:12 AM when the dashboard opens and advances in real time.
+const NIGHT_START_SECONDS = 3 * 3600 + 12 * 60;
+
+function formatClock(totalSeconds: number) {
+  const s = Math.floor(totalSeconds) % 86400;
+  const h24 = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
+  return `${String(h12).padStart(2, "0")}:${String(m).padStart(2, "0")} ${h24 < 12 ? "AM" : "PM"}`;
+}
+
+function NightClock() {
+  const [t, setT] = useState<{ start: number; now: number } | null>(null);
+  useEffect(() => {
+    const tick = () =>
+      setT((prev) => {
+        const now = Date.now();
+        return { start: prev?.start ?? now, now };
+      });
+    const first = setTimeout(tick, 0);
+    const iv = setInterval(tick, 1000);
+    return () => {
+      clearTimeout(first);
+      clearInterval(iv);
+    };
+  }, []);
+  if (!t) return <span className="font-mono text-slate-500">--:-- --</span>;
+  return <span className="font-mono text-white">{formatClock(NIGHT_START_SECONDS + (t.now - t.start) / 1000)}</span>;
+}
+
+export default function Header({
+  logoSrc,
+  nursesOn,
+  openCount,
+  live,
+}: {
+  logoSrc: string | null;
+  nursesOn: number;
+  openCount: number;
+  live: "live" | "offline" | "connecting";
+}) {
+  return (
+    <header className="flex items-center gap-5 border-b border-slate-800 px-5 py-3">
+      {logoSrc ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={logoSrc} alt="Kijo" className="h-8 w-8" />
+      ) : null}
+      <span className="text-xl font-black tracking-[0.3em] text-white">KIJO</span>
+      <span className="text-slate-400">Night Shift</span>
+      <NightClock />
+      <span className="text-sm text-slate-400">
+        Nurses on: <span className="text-white">{nursesOn}</span>
+      </span>
+      <span className="text-sm text-slate-400">
+        Open alerts: <span className="font-mono text-white">{openCount}</span>
+      </span>
+      <span
+        className={`ml-auto text-sm ${
+          live === "live" ? "text-emerald-400" : live === "offline" ? "text-orange-400" : "text-slate-400"
+        }`}
+      >
+        ● {live === "live" ? "Live" : live === "offline" ? "Offline" : "Connecting…"}
+      </span>
+    </header>
+  );
+}

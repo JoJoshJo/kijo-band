@@ -1,0 +1,69 @@
+/* Dashboard-only animations. Alarm timing follows IEC 60601-1-8 style:
+   P1 fast flash (0.5s cycle), P2 slow flash (2s cycle), P3 steady. */
+
+@keyframes kijo-flash {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0.25;
+  }
+}
+.kijo-flash-fast {
+  animation: kijo-flash 0.5s linear infinite;
+}
+.kijo-flash-slow {
+  animation: kijo-flash 2s linear infinite;
+}
+
+/* Scrolling pulse line: shift left by one beat per heartbeat (duration set inline from HR). */
+@keyframes kijo-pulse-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(var(--kijo-beat, -60px));
+  }
+}
+.kijo-pulse-scroll {
+  animation: kijo-pulse-scroll 1s linear infinite;
+}
+
+/* New alert card slides in (new P1 lands on top of the sorted queue). */
+@keyframes kijo-card-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-12px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.kijo-card-enter {
+  animation: kijo-card-enter 0.35s ease-out;
+}
+
+@keyframes kijo-drawer-enter {
+  from {
+    transform: translateX(24px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+.kijo-drawer-enter {
+  animation: kijo-drawer-enter 0.2s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kijo-pulse-scroll,
+  .kijo-card-enter,
+  .kijo-drawer-enter {
+    animation: none;
+  }
+}
