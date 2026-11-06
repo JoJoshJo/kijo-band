@@ -5,12 +5,14 @@ import { useMemo } from "react";
 import useSWR from "swr";
 import { recolorLottie } from "./_lib/lottieColor";
 import { FOCUS, useReducedMotion } from "./_lib/a11y";
+import { Microphone } from "@phosphor-icons/react";
 
 // lottie-web touches `document` when it loads, so it only ever runs in the browser.
 const Lottie = dynamic(() => import("lottie-react").then((m) => m.Lottie), { ssr: false });
 
 export const TALK_ANIMATION_PATH = "/animations/talk.json";
-const COLORS = { red: "#dc2626", green: "#16a34a" } as const;
+// Design tokens: alarm red / ok green (src/styles/tokens.css).
+const COLORS = { red: "#e5484d", green: "#3dd68c" } as const;
 export type TalkColor = keyof typeof COLORS;
 
 const fetchJson = async (url: string): Promise<object> => {
@@ -29,12 +31,15 @@ export default function TalkButton({
   color,
   active,
   label,
+  hint,
   disabled,
   onClick,
 }: {
   color: TalkColor;
   active: boolean;
   label: string;
+  /** Second line under the label, e.g. "or say “Kijo”" */
+  hint?: string;
   disabled?: boolean;
   onClick: () => void;
 }) {
@@ -45,8 +50,8 @@ export default function TalkButton({
   });
   const reduced = useReducedMotion();
   const recolored = useMemo(() => (animation ? recolorLottie(animation, COLORS[color]) : null), [animation, color]);
-  const bg = color === "green" ? "bg-green-600" : "bg-red-600";
-  const glow = color === "green" ? "shadow-[0_0_70px_rgba(22,163,74,0.5)]" : "shadow-[0_0_70px_rgba(220,38,38,0.5)]";
+  const bg = color === "green" ? "bg-ok" : "bg-alarm";
+  const glow = color === "green" ? "shadow-[0_0_70px_rgba(61,214,140,0.45)]" : "shadow-[0_0_70px_rgba(229,72,77,0.45)]";
 
   return (
     <div className="flex flex-col items-center gap-3">
@@ -75,18 +80,14 @@ export default function TalkButton({
           </span>
         )}
       </button>
-      <div className="text-3xl font-bold" aria-live="polite">
+      <div className="text-center text-2xl font-semibold" aria-live="polite">
         {label}
+        {hint && <span className="font-normal text-muted"> · {hint}</span>}
       </div>
     </div>
   );
 }
 
 function MicIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="relative h-1/3 w-1/3 text-white" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <rect x="9" y="3" width="6" height="11" rx="3" />
-      <path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21" />
-    </svg>
-  );
+  return <Microphone weight="fill" className="relative h-1/3 w-1/3 text-bg" aria-hidden />;
 }

@@ -59,6 +59,92 @@ export function containsTrigger(text: string, lang: Language): boolean {
   return phrases.some((p) => hasPhrase(norm, p));
 }
 
+// ── Background listening: "Kijo" wake word + emergency words ──
+// Residents who can't move or tap say "Kijo, …" (or "Kijo" … "Yes?" … then the request). Emergency
+// words work WITHOUT the wake word. Everything else said in the room is ignored.
+
+/** Emergency phrases (normalized) — trigger without the wake word. English is accepted for everyone. */
+export const EMERGENCY_PHRASES: Record<Language, string[]> = {
+  en: [
+    "help", "help me", "emergency", "i fell", "ive fallen", "i have fallen", "i fell down",
+    "cant breathe", "cannot breathe", "i cant breathe", "chest pain", "heart attack",
+  ],
+  fr: [
+    "au secours", "a l aide", "aidez moi", "je suis tombe", "je suis tombee", "urgence",
+    "je ne peux pas respirer", "j arrive pas a respirer", "je n arrive pas a respirer", "je respire pas",
+    "douleur a la poitrine", "mal a la poitrine", "crise cardiaque",
+  ],
+  es: [
+    "ayuda", "ayudeme", "ayudenme", "ayudame", "socorro", "auxilio", "me cai", "me he caido", "emergencia",
+    "no puedo respirar", "dolor de pecho", "dolor en el pecho", "infarto",
+  ],
+};
+
+/**
+ * How recognizers spell "Kijo" (normalized; one or two words). Two-word variants only count as a pair.
+ * Deliberately excludes real words that sound close ("key", "kilo", "quijote", "queso", "kiwi").
+ */
+export const WAKE_VARIANTS: string[][] = [
+  ["kijo"], ["kiyo"], ["kijou"], ["kidjo"], ["quijo"], ["keejo"], ["keyjo"], ["kijoe"], ["kiyoh"],
+  ["key", "jo"], ["ki", "jo"], ["kee", "jo"], ["qui", "jo"], ["key", "joe"], ["ki", "joe"], ["kee", "joe"],
+];
+
+export function isEmergency(text: string, lang: Language): boolean {
+  const norm = normalize(text);
+  if (!norm) return false;
+  const phrases = lang === "en" ? EMERGENCY_PHRASES.en : [...EMERGENCY_PHRASES[lang], ...EMERGENCY_PHRASES.en];
+  return phrases.some((p) => hasPhrase(norm, p));
+}
+
+/**
+ * Finds the wake word. `command` is what was said AFTER it in the same utterance, in the ORIGINAL
+ * wording (accents kept, leading punctuation dropped) — "" if nothing followed.
+ */
+export function findWakeWord(text: string): { command: string } | null {
+  // Words in order, each with the end offset of the original chunk it came from.
+  // `joined`: this word continues the previous one with only a space/hyphen between ("Key jo", "Key-jo"),
+  // so a two-word variant can't span punctuation ("the key, Jo").
+  const words: { w: string; end: number; joined: boolean }[] = [];
+  let prevChunk = "";
+  for (const m of text.matchAll(/\S+/g)) {
+    const end = (m.index ?? 0) + m[0].length;
+    const parts = normalize(m[0]).split(" ").filter(Boolean);
+    const chunkJoined = /[\p{L}\p{N}]$/u.test(prevChunk) && /^[\p{L}\p{N}]/u.test(m[0]);
+    parts.forEach((w, k) => words.push({ w, end, joined: k > 0 ? /^[\p{L}\p{N}]+-[\p{L}\p{N}]/u.test(m[0]) : chunkJoined }));
+    prevChunk = m[0];
+  }
+  for (let i = 0; i < words.length; i++) {
+    for (const v of WAKE_VARIANTS) {
+      if (v.every((part, k) => words[i + k]?.w === part && (k === 0 || words[i + k].joined))) {
+        const end = words[i + v.length - 1].end;
+        const command = text
+          .slice(end)
+          .replace(/^[\s,.;:!?¡¿…\-–—'"“”«»]+/u, "")
+          .trim()
+          .slice(0, MAX_TRANSCRIPT_CHARS);
+        return { command };
+      }
+    }
+  }
+  return null;
+}
+
+export type BackgroundIntent =
+  | { kind: "wake"; command: string } // "Kijo, …" (command "" → ask "Yes?" and take the next utterance)
+  | { kind: "emergency"; text: string }; // emergency words, no wake word needed
+
+/** What background listening should do with one final sentence; null = ordinary talk, ignore it. */
+export function backgroundIntent(text: string, lang: Language): BackgroundIntent | null {
+  const wake = findWakeWord(text);
+  if (wake) {
+    // "Kijo" alone, but an emergency earlier in the sentence ("I fell, Kijo") → send the whole sentence.
+    if (!wake.command && isEmergency(text, lang)) return { kind: "emergency", text };
+    return { kind: "wake", command: wake.command };
+  }
+  if (isEmergency(text, lang)) return { kind: "emergency", text };
+  return null;
+}
+
 export interface TriageResult {
   priority: AlertPriority;
   category: string;

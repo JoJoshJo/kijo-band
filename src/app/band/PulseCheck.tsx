@@ -10,6 +10,7 @@ import {
   type PulseSample,
 } from "@/lib/detection/pulse";
 import { FOCUS } from "./_lib/a11y";
+import { Heartbeat } from "@phosphor-icons/react";
 import type { BandStrings } from "./_lib/i18n";
 
 type Phase = "intro" | "measuring" | "done" | "failed" | "error";
@@ -190,16 +191,19 @@ export default function PulseCheck({
   }
 
   const qualityLabel = quality === "good" ? t.qualityGood : quality === "fair" ? t.qualityFair : quality === "poor" ? t.qualityPoor : "…";
-  const qualityColor = quality === "good" ? "bg-emerald-400" : quality === "fair" ? "bg-yellow-400" : quality === "poor" ? "bg-red-500" : "bg-slate-600";
+  const qualityColor = quality === "good" ? "bg-ok" : quality === "fair" ? "bg-warn" : quality === "poor" ? "bg-alarm" : "bg-line-2";
 
   return (
     <div
       role="dialog"
       aria-label={t.checkPulse}
-      className="fixed inset-0 z-[25] flex flex-col items-center overflow-y-auto bg-black px-6 pt-8 pb-[max(1.5rem,env(safe-area-inset-bottom))] text-center"
+      className="fixed inset-0 z-[25] flex flex-col items-center overflow-y-auto bg-bg px-6 pt-8 pb-[max(1.5rem,env(safe-area-inset-bottom))] text-center"
     >
-      <h1 className="text-4xl font-bold">{t.checkPulse}</h1>
-      <p className="mt-1 text-xl text-slate-300">{t.pulseDisclaimer}</p>
+      <h1 className="flex items-center gap-3 text-display font-semibold">
+        <Heartbeat size={36} weight="fill" className="text-brand" aria-hidden />
+        {t.checkPulse}
+      </h1>
+      <p className="mt-1 text-xl text-muted">{t.pulseDisclaimer}</p>
 
       <div className="flex w-full max-w-sm flex-1 flex-col items-center justify-center gap-5">
         {/* Camera preview: turns red when the fingertip covers the lens */}
@@ -208,19 +212,19 @@ export default function PulseCheck({
           playsInline
           muted
           aria-hidden
-          className={`h-20 w-20 rounded-full object-cover ring-4 ${covered ? "ring-red-500" : "ring-slate-700"} ${phase === "measuring" ? "" : "pointer-events-none absolute h-px w-px opacity-0"}`}
+          className={`h-20 w-20 rounded-full object-cover ring-4 ${covered ? "ring-brand" : "ring-line-2"} ${phase === "measuring" ? "" : "pointer-events-none absolute h-px w-px opacity-0"}`}
         />
 
         {phase === "intro" && <p className="text-2xl leading-snug">{t.pulseInstructions}</p>}
-        {phase === "error" && <p className="text-2xl leading-snug text-red-300">{t.pulseNoCamera}</p>}
+        {phase === "error" && <p className="text-2xl leading-snug text-warn">{t.pulseNoCamera}</p>}
 
         {phase === "measuring" && (
           <>
             <p className="text-2xl leading-snug">{covered ? t.pulseHoldStill : t.pulseCover}</p>
-            {torch === false && <p className="text-xl text-yellow-200">{t.pulseNoTorch}</p>}
+            {torch === false && <p className="text-xl text-warn">{t.pulseNoTorch}</p>}
             <PulseWave y={wave} />
-            <div className="h-3 w-full overflow-hidden rounded-full bg-slate-800">
-              <div className="h-full bg-teal-400 transition-[width] duration-100 motion-reduce:transition-none" style={{ width: `${Math.round(progress * 100)}%` }} />
+            <div className="h-3 w-full overflow-hidden rounded-full bg-surface-2">
+              <div className="h-full bg-brand transition-[width] duration-100 motion-reduce:transition-none" style={{ width: `${Math.round(progress * 100)}%` }} />
             </div>
             <div className="flex items-center gap-2 text-xl" aria-live="polite">
               <span className={`inline-block h-3 w-3 rounded-full ${qualityColor}`} aria-hidden />
@@ -232,20 +236,20 @@ export default function PulseCheck({
         {phase === "done" && bpm != null && (
           <>
             <div className="flex items-baseline gap-2">
-              <span className="text-8xl font-black tabular-nums">{bpm}</span>
-              <span className="text-2xl text-slate-300">{t.bpm}</span>
+              <span className="num text-8xl font-semibold">{bpm}</span>
+              <span className="text-2xl text-muted">{t.bpm}</span>
             </div>
-            <p className="text-xl text-emerald-300">{t.pulseSent}</p>
+            <p className="text-xl text-ok">{t.pulseSent}</p>
           </>
         )}
-        {phase === "failed" && <p className="text-3xl font-semibold text-yellow-200">{t.pulseTryAgain}</p>}
+        {phase === "failed" && <p className="text-3xl font-semibold text-warn">{t.pulseTryAgain}</p>}
       </div>
 
       <div className="mt-6 flex w-full max-w-sm flex-col gap-3">
         {(phase === "intro" || phase === "failed" || phase === "error") && (
           <button
             onClick={() => void start()}
-            className={`min-h-16 rounded-2xl bg-teal-500 text-2xl font-bold text-black active:scale-95 ${FOCUS}`}
+            className={`min-h-16 rounded-btn bg-brand text-2xl font-bold text-bg active:scale-95 ${FOCUS}`}
           >
             {phase === "intro" ? t.pulseStart : t.pulseRetry}
           </button>
@@ -255,7 +259,7 @@ export default function PulseCheck({
             stopCamera();
             onClose();
           }}
-          className={`min-h-16 rounded-2xl border-2 border-slate-500 text-2xl font-bold text-white active:scale-95 ${FOCUS}`}
+          className={`min-h-16 rounded-btn border-2 border-line-2 text-2xl font-bold text-ink active:scale-95 ${FOCUS}`}
         >
           {phase === "done" ? t.pulseDone : t.back}
         </button>
@@ -274,9 +278,9 @@ function PulseWave({ y }: { y: number[] }) {
     points = y.map((v, i) => `${((i / (y.length - 1)) * W).toFixed(1)},${(H / 2 - (v / max) * (H / 2 - 6)).toFixed(1)}`).join(" ");
   }
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="h-24 w-full rounded-xl bg-slate-900" aria-hidden>
-      <line x1="0" y1={H / 2} x2={W} y2={H / 2} className="stroke-slate-800" strokeWidth="1" />
-      {points && <polyline points={points} fill="none" strokeWidth="3" strokeLinejoin="round" className="stroke-red-400" />}
+    <svg viewBox={`0 0 ${W} ${H}`} className="h-24 w-full rounded-btn bg-surface" aria-hidden>
+      <line x1="0" y1={H / 2} x2={W} y2={H / 2} className="stroke-line" strokeWidth="1" />
+      {points && <polyline points={points} fill="none" strokeWidth="3" strokeLinejoin="round" className="stroke-brand" />}
     </svg>
   );
 }

@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#000000",
+  themeColor: "#0b0f14",
   width: "device-width",
   initialScale: 1,
   // Pinch-zoom stays allowed (accessibility); buttons use touch-action: manipulation, so a double tap
@@ -19,5 +19,5 @@ export const viewport: Viewport = {
 };
 
 export default function BandLayout({ children }: LayoutProps<"/band">) {
-  return <div className="flex min-h-dvh flex-1 flex-col bg-black text-white">{children}</div>;
+  return <div className="flex min-h-dvh flex-1 flex-col bg-bg text-ink">{children}</div>;
 }

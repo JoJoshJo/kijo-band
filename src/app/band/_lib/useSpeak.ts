@@ -86,3 +86,31 @@ export function vibrateSent() {
     // Not allowed (no user activation yet, or blocked in an iframe): silent.
   }
 }
+
+let audioCtx: AudioContext | null = null;
+/** Soft two-note chime ("I heard you"). Best effort: silent if audio isn't allowed yet. */
+export function chime() {
+  try {
+    const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!Ctx) return;
+    audioCtx ??= new Ctx();
+    const ctx = audioCtx;
+    if (ctx.state === "suspended") void ctx.resume();
+    const t0 = ctx.currentTime + 0.02;
+    [660, 880].forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.value = freq;
+      const start = t0 + i * 0.16;
+      gain.gain.setValueAtTime(0, start);
+      gain.gain.linearRampToValueAtTime(0.18, start + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + 0.28);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(start);
+      osc.stop(start + 0.3);
+    });
+  } catch {
+    // no audio: the spoken "Yes?" still follows
+  }
+}

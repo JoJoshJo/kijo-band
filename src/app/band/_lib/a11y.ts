@@ -45,6 +45,6 @@ export function useLargeText(): [boolean, (on: boolean) => void] {
   return [on, set];
 }
 
-/** Visible keyboard / switch-access focus ring for every band control (4px yellow, offset from the button). */
+/** Visible keyboard / switch-access focus ring for every band control (4px brand teal, offset from the button). */
 export const FOCUS =
-  "focus-visible:outline-solid focus-visible:outline-4 focus-visible:outline-offset-4 focus-visible:outline-yellow-300";
+  "focus-visible:outline-solid focus-visible:outline-4 focus-visible:outline-offset-4 focus-visible:outline-brand";

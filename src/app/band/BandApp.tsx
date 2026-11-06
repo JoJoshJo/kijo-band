@@ -15,9 +15,20 @@ import {
 } from "@/lib/detection/alertRules";
 import { LANGUAGES, LANGUAGE_NAMES, STRINGS, fill, nurseDisplayName, type BandStrings } from "./_lib/i18n";
 import { FOCUS, useLargeText } from "./_lib/a11y";
-import { useSpeak, vibrateSent } from "./_lib/useSpeak";
+import { chime, useSpeak, vibrateSent } from "./_lib/useSpeak";
+import {
+  Drop,
+  GearSix,
+  Heartbeat,
+  Microphone,
+  SmileySad,
+  Siren,
+  Toilet,
+  Translate,
+  type Icon,
+} from "@phosphor-icons/react";
 import { useMotionDetection } from "./_lib/useMotionDetection";
-import { useVoiceTrigger } from "./_lib/useVoiceTrigger";
+import { useVoiceTrigger, type VoiceProblem } from "./_lib/useVoiceTrigger";
 import PulseCheck from "./PulseCheck";
 import TalkButton from "./TalkButton";
 import type { ActivityEvent } from "@/lib/detection/activity";
@@ -50,14 +61,14 @@ function InstallHint({ t }: { t: BandStrings }) {
   const kind = useInstallKind();
   if (kind !== "ios" && kind !== "prompt") return null;
   return (
-    <div className="w-full max-w-sm rounded-2xl border border-slate-700 bg-slate-900 p-4 text-center">
+    <div className="w-full max-w-sm rounded-btn border border-line-2 bg-surface p-4 text-center">
       <div className="text-xl font-semibold">{t.installTitle}</div>
       {kind === "ios" ? (
-        <div className="mt-1 text-xl text-slate-300">{t.installIos}</div>
+        <div className="mt-1 text-xl text-muted">{t.installIos}</div>
       ) : (
         <button
           onClick={() => void promptInstall()}
-          className={`mt-3 min-h-14 rounded-full bg-white px-6 py-2 text-xl font-semibold text-black active:scale-95 ${FOCUS}`}
+          className={`mt-3 min-h-14 rounded-btn bg-brand px-6 py-2 text-xl font-semibold text-bg active:scale-95 ${FOCUS}`}
         >
           {t.installButton}
         </button>
@@ -67,7 +78,7 @@ function InstallHint({ t }: { t: BandStrings }) {
 }
 
 function CenterMessage({ text }: { text: string }) {
-  return <div className="flex flex-1 items-center justify-center p-8 text-center text-2xl text-slate-300">{text}</div>;
+  return <div className="flex flex-1 items-center justify-center p-8 text-center text-2xl text-muted">{text}</div>;
 }
 
 /**
@@ -342,16 +353,37 @@ function Band({ residentId, embedded }: { residentId: string; embedded: boolean 
 
   // ── Voice: background listening (trigger words) + the Talk button (one sentence, no trigger word) ──
   // Paused while the band is speaking so it doesn't hear itself.
+  const canSpeak = !!resident?.canSpeak;
   const voice = useVoiceTrigger({
-    enabled: started && !!resident?.canSpeak && !speaking,
+    enabled: started && canSpeak,
+    paused: speaking,
     lang,
     onTrigger: (sentence) => void postAlert("/api/triage", { transcript: sentence, language: lang }),
     onTalk: (sentence) => void postAlert("/api/triage", { transcript: sentence, language: lang }),
+    // "Kijo" alone: chime, then "Yes?" in the resident's language; the next sentence is the request.
+    onWake: () => {
+      chime();
+      setTimeout(() => speak(STRINGS[lang].wakeYes), 350);
+    },
   });
   const onTalkTap = useCallback(() => {
     stopSpeaking(); // the resident wants to talk: stop talking to them
-    if (!voice.talk()) showToast(STRINGS[lang].voiceUnavailable);
+    if (!voice.talk()) showToast(STRINGS[lang].voiceUnavailable); // synchronous: iOS needs the tap
   }, [voice, lang, showToast, stopSpeaking]);
+  /** Language chosen (a tap): switch the UI and restart listening in the new language inside the tap. */
+  const changeLanguage = useCallback(
+    (l: Language) => {
+      setLangOverride(l);
+      if (started && canSpeak) voice.arm(l);
+    },
+    [started, canSpeak, voice],
+  );
+
+  // Fall countdown: say "Are you OK?" too (eyesight may be poor; the phone may be on the floor).
+  const fallPending = fallDeadline != null;
+  useEffect(() => {
+    if (fallPending) speak(`${STRINGS[lang].areYouOk} ${STRINGS[lang].fallDetected}`);
+  }, [fallPending, lang, speak]);
 
   // ── Start Kijo (permissions must be requested inside the tap) ──
   const requestWakeLock = useCallback(async () => {
@@ -364,27 +396,28 @@ function Band({ residentId, embedded }: { residentId: string; embedded: boolean 
     }
   }, []);
 
+  const [motionDenied, setMotionDenied] = useState(false);
   const handleStart = useCallback(async () => {
-    // iOS: must be the first await inside the user gesture.
+    // iOS: everything that needs the user gesture is CALLED synchronously here, before any await —
+    // the motion permission prompt and the speech recognizer (which asks for the microphone itself).
     const DME = typeof DeviceMotionEvent !== "undefined"
       ? (DeviceMotionEvent as unknown as { requestPermission?: () => Promise<PermissionState> })
       : undefined;
+    let motionPermission: Promise<PermissionState> | null = null;
     try {
-      if (DME?.requestPermission) await DME.requestPermission();
+      motionPermission = DME?.requestPermission ? DME.requestPermission() : null;
     } catch {
-      // Denied or not in a gesture; motion detection (Checkpoint 3) will be unavailable.
+      motionPermission = Promise.resolve("denied");
     }
-    if (resident?.canSpeak && navigator.mediaDevices?.getUserMedia) {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        stream.getTracks().forEach((tr) => tr.stop()); // permission only; nothing is recorded
-      } catch {
-        // Mic denied: buttons still work.
-      }
+    if (canSpeak) voice.arm();
+    if (motionPermission) {
+      const state = await motionPermission.catch(() => "denied" as PermissionState);
+      if (process.env.NODE_ENV !== "production") console.debug(`[motion] permission ${state}`);
+      setMotionDenied(state !== "granted"); // falls can't be detected; buttons still work
     }
     await requestWakeLock();
     setStarted(true);
-  }, [resident?.canSpeak, requestWakeLock]);
+  }, [canSpeak, voice, requestWakeLock]);
 
   useEffect(() => {
     if (!started) return;
@@ -411,18 +444,18 @@ function Band({ residentId, embedded }: { residentId: string; embedded: boolean 
       <div className="flex flex-1 flex-col items-center justify-center gap-8 p-6 text-center">
         <div>
           <div className="text-3xl font-semibold">{resident.name}</div>
-          <div className="mt-1 text-xl text-slate-400">
+          <div className="mt-1 text-xl text-muted">
             {t.room} {resident.room}
           </div>
         </div>
         <button
           onClick={handleStart}
-          className={`flex aspect-square w-[70vw] max-w-80 items-center justify-center rounded-full bg-teal-500 text-4xl font-bold text-black shadow-[0_0_60px_rgba(20,184,166,0.5)] active:scale-95 ${FOCUS}`}
+          className={`flex aspect-square w-[70vw] max-w-80 items-center justify-center rounded-full bg-brand text-4xl font-bold text-bg shadow-[0_0_60px_rgba(43,179,163,0.45)] active:scale-95 ${FOCUS}`}
         >
           {t.start}
         </button>
-        <div className="text-xl text-slate-400">{t.startHint}</div>
-        <LanguageSwitch t={t} lang={lang} onChange={setLangOverride} />
+        <div className="text-xl text-muted">{t.startHint}</div>
+        <LanguageSwitch t={t} lang={lang} onChange={changeLanguage} />
         <LargeTextSwitch t={t} on={largeText} onChange={setLargeText} />
         <InstallHint t={t} />
       </div>
@@ -439,60 +472,64 @@ function Band({ residentId, embedded }: { residentId: string; embedded: boolean 
           <AlertBanner t={t} lang={lang} alert={activeAlert} nurse={nurse} onOpen={() => setSheetAlertId(activeAlert.id)} />
         )}
 
-        {/* Top: name + room (small), corner icons: language, pulse check */}
+        {/* Top bar: name · room, then Translate (language + large text) and Heartbeat (pulse check) */}
         <header className="flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <div className="truncate text-xl font-semibold">{resident.name}</div>
-            <div className="text-xl text-slate-300">
+          <div className="min-w-0 text-xl leading-snug break-words">
+            <span className="whitespace-nowrap font-semibold">{resident.name}</span>
+            <span className="whitespace-nowrap text-muted">
+              {" · "}
               {t.room} {resident.room}
-            </div>
+            </span>
           </div>
           <div className="flex shrink-0 gap-2">
-            <button
+            <IconButton
+              icon={Translate}
+              label={`${t.language}: ${LANGUAGE_NAMES[lang]}. ${t.largeText}`}
               onClick={() => setSettingsOpen(true)}
-              aria-label={`${t.language}: ${LANGUAGE_NAMES[lang]}. ${t.largeText}`}
-              aria-haspopup="dialog"
-              className={`flex h-14 min-w-14 items-center justify-center rounded-2xl bg-slate-800 px-3 text-xl font-bold uppercase active:scale-95 ${FOCUS}`}
-            >
-              <span aria-hidden>{lang}</span>
-            </button>
-            <button
-              onClick={() => setPulseOpen(true)}
-              aria-label={t.checkPulse}
-              aria-haspopup="dialog"
-              className={`flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-800 text-2xl text-red-400 active:scale-95 ${FOCUS}`}
-            >
-              <span aria-hidden>♥</span>
-            </button>
+            />
+            <IconButton icon={Heartbeat} label={t.checkPulse} onClick={() => setPulseOpen(true)} />
           </div>
         </header>
+
+        <VoiceStatus
+          t={t}
+          canSpeak={canSpeak}
+          listening={voice.listening}
+          talking={voice.talking}
+          paused={speaking}
+          needsTap={voice.needsTap}
+          problem={voice.problem}
+          motionDenied={motionDenied && !embedded}
+          onResume={() => voice.arm()}
+        />
 
         {/* Center: tap and talk */}
         <div className="flex flex-1 items-center justify-center py-2">
           <TalkButton
             color={helpComing ? "green" : "red"}
-            active={voice.talking}
-            label={voice.talking ? t.listening : t.tapToTalk}
+            active={voice.talking || voice.capturing}
+            label={voice.talking || voice.capturing ? t.listening : t.tapToTalk}
+            hint={canSpeak && !voice.problem ? t.orSayKijo : undefined}
             disabled={sending}
             onClick={onTalkTap}
           />
         </div>
 
         {/* Quick buttons */}
-        <div className="grid grid-cols-2 gap-4">
-          <NeedButton emoji="💧" label={t.water} disabled={sending} onClick={() => void sendAlert("need_water")} />
-          <NeedButton emoji="🚻" label={t.bathroom} disabled={sending} onClick={() => void sendAlert("need_bathroom")} />
-          <NeedButton emoji="😣" label={t.pain} disabled={sending} onClick={() => void sendAlert("need_pain")} />
+        <div className="grid grid-cols-2 gap-3">
+          <NeedButton icon={Drop} tone="info" label={t.water} disabled={sending} onClick={() => void sendAlert("need_water")} />
+          <NeedButton icon={Toilet} tone="brand" label={t.bathroom} disabled={sending} onClick={() => void sendAlert("need_bathroom")} />
+          <NeedButton icon={SmileySad} tone="neutral" label={t.pain} disabled={sending} onClick={() => void sendAlert("need_pain")} />
           <NeedButton
-            emoji="🆘"
+            icon={Siren}
+            tone="alarm"
             label={t.needHelp}
-            danger
             disabled={sending}
             onClick={() => void sendAlert("need_help", "big_help")}
           />
         </div>
 
-        <div className="min-h-7 text-center text-xl text-slate-300" role="status" aria-live="polite">
+        <div className="min-h-7 text-center text-xl text-muted" role="status" aria-live="polite">
           {sending ? t.sending : toast ?? (error ? t.offline : "")}
         </div>
 
@@ -510,7 +547,7 @@ function Band({ residentId, embedded }: { residentId: string; embedded: boolean 
           <SettingsSheet
             t={t}
             lang={lang}
-            onLang={setLangOverride}
+            onLang={changeLanguage}
             largeText={largeText}
             onLargeText={setLargeText}
             onClose={() => setSettingsOpen(false)}
@@ -540,31 +577,114 @@ function Band({ residentId, embedded }: { residentId: string; embedded: boolean 
   );
 }
 
+/**
+ * One line under the header: "● Listening" while background listening is on, a "Tap to resume
+ * listening" button when iOS stopped it, or a hint when voice / fall detection can't work here.
+ */
+function VoiceStatus({
+  t,
+  canSpeak,
+  listening,
+  talking,
+  paused,
+  needsTap,
+  problem,
+  motionDenied,
+  onResume,
+}: {
+  t: BandStrings;
+  canSpeak: boolean;
+  listening: boolean;
+  talking: boolean;
+  paused: boolean;
+  needsTap: boolean;
+  problem: VoiceProblem | null;
+  motionDenied: boolean;
+  onResume: () => void;
+}) {
+  const hint = canSpeak && problem
+    ? {
+        unsupported: t.voiceUnavailable,
+        "open-in-safari": t.voiceOpenSafari,
+        "dictation-off": t.voiceDictationOff,
+        "mic-blocked": t.voiceMicBlocked,
+      }[problem]
+    : null;
+  return (
+    <div className="flex min-h-10 flex-col items-center gap-2" role="status" aria-live="polite">
+      {canSpeak && !problem && needsTap && !talking && (
+        <button
+          onClick={onResume}
+          className={`flex min-h-14 items-center gap-3 rounded-full bg-brand px-6 text-xl font-semibold text-bg active:scale-95 ${FOCUS}`}
+        >
+          <MicGlyph />
+          {t.resumeListening}
+        </button>
+      )}
+      {canSpeak && !problem && !needsTap && (listening || paused) && !talking && (
+        <div className="flex items-center gap-2 rounded-full border border-ok/30 bg-ok/10 px-4 py-1 text-xl text-ok">
+          <span className="relative flex h-3 w-3" aria-hidden>
+            <span className="absolute inline-flex h-full w-full rounded-full bg-ok opacity-60 motion-safe:animate-ping" />
+            <span className="relative inline-flex h-3 w-3 rounded-full bg-ok" />
+          </span>
+          <MicGlyph />
+          {t.listeningOn}
+        </div>
+      )}
+      {hint && <p className="text-center text-xl text-warn">{hint}</p>}
+      {motionDenied && <p className="text-center text-xl text-warn">{t.motionDenied}</p>}
+    </div>
+  );
+}
+
+function MicGlyph() {
+  return <Microphone size={22} weight="fill" aria-hidden />;
+}
+
+/** Square-ish icon button in the top bar (56px target, 30px Phosphor fill icon). */
+function IconButton({ icon: I, label, onClick }: { icon: Icon; label: string; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      aria-label={label}
+      aria-haspopup="dialog"
+      className={`flex h-14 w-14 items-center justify-center rounded-btn border border-line bg-surface-2 text-ink active:scale-95 ${FOCUS}`}
+    >
+      <I size={30} weight="fill" aria-hidden />
+    </button>
+  );
+}
+
+const CARD_TONES = {
+  info: { card: "border-info/35 bg-info/10 active:bg-info/20", icon: "text-info" },
+  brand: { card: "border-brand/35 bg-brand/10 active:bg-brand/20", icon: "text-brand" },
+  neutral: { card: "border-line-2 bg-surface-2 active:bg-line-2", icon: "text-ink" },
+  // The red Help (P1) for residents who can't speak: red-tinted with a red border.
+  alarm: { card: "border-2 border-alarm bg-alarm/15 active:bg-alarm/25", icon: "text-alarm" },
+} as const;
+
+/** Quick-request card: tinted, icon above the word, ≥ 84px tall, radius 18. */
 function NeedButton({
-  emoji,
+  icon: I,
+  tone,
   label,
   onClick,
   disabled,
-  danger,
 }: {
-  emoji: string;
+  icon: Icon;
+  tone: keyof typeof CARD_TONES;
   label: string;
   onClick: () => void;
   disabled: boolean;
-  /** The red 🆘 Help (P1) for residents who can't speak. */
-  danger?: boolean;
 }) {
+  const c = CARD_TONES[tone];
   return (
     <button
       onClick={onClick}
       disabled={disabled}
-      className={`flex min-h-28 flex-col items-center justify-center gap-1 rounded-3xl py-2 text-2xl font-semibold active:scale-95 disabled:opacity-60 ${FOCUS} ${
-        danger ? "bg-red-600 text-white active:bg-red-700" : "bg-slate-800 active:bg-slate-700"
-      }`}
+      className={`flex min-h-[84px] flex-col items-center justify-center gap-1.5 rounded-[18px] border px-2 py-3 text-2xl font-semibold text-ink active:scale-95 disabled:opacity-60 ${c.card} ${FOCUS}`}
     >
-      <span className="text-4xl" aria-hidden>
-        {emoji}
-      </span>
+      <I size={36} weight="fill" className={c.icon} aria-hidden />
       {label}
     </button>
   );
@@ -580,8 +700,8 @@ function LanguageSwitch({ t, lang, onChange }: { t: BandStrings; lang: Language;
           aria-pressed={l === lang}
           aria-label={LANGUAGE_NAMES[l]}
           lang={l}
-          className={`h-14 min-w-20 rounded-2xl px-3 text-xl font-semibold uppercase ${FOCUS} ${
-            l === lang ? "bg-teal-500 text-black" : "bg-slate-800 text-slate-200"
+          className={`h-14 min-w-20 rounded-btn px-3 text-xl font-semibold uppercase ${FOCUS} ${
+            l === lang ? "border border-brand bg-brand text-bg" : "border border-line-2 bg-surface-2 text-ink"
           }`}
         >
           {l}
@@ -598,7 +718,7 @@ function LargeTextSwitch({ t, on, onChange }: { t: BandStrings; on: boolean; onC
       role="switch"
       aria-checked={on}
       onClick={() => onChange(!on)}
-      className={`flex min-h-16 w-full max-w-sm items-center justify-between gap-4 rounded-2xl bg-slate-800 px-5 text-2xl font-semibold ${FOCUS}`}
+      className={`flex min-h-16 w-full max-w-sm items-center justify-between gap-4 rounded-btn bg-surface-2 px-5 text-2xl font-semibold ${FOCUS}`}
     >
       <span>
         <span className="text-[1.25em]" aria-hidden>
@@ -612,12 +732,12 @@ function LargeTextSwitch({ t, on, onChange }: { t: BandStrings; on: boolean; onC
       <span
         aria-hidden
         className={`relative h-9 w-16 shrink-0 rounded-full border-2 transition-colors motion-reduce:transition-none ${
-          on ? "border-teal-400 bg-teal-500" : "border-slate-400 bg-slate-900"
+          on ? "border-brand bg-brand" : "border-line-2 bg-surface"
         }`}
       >
         <span
           className={`absolute top-1 h-6 w-6 rounded-full transition-[left] motion-reduce:transition-none ${
-            on ? "left-8 bg-black" : "left-1 bg-slate-300"
+            on ? "left-8 bg-bg" : "left-1 bg-muted"
           }`}
         />
       </span>
@@ -649,14 +769,14 @@ function Sheet({ label, onClose, children }: { label: string; onClose: () => voi
     };
   }, []);
   return (
-    <div className="fixed inset-0 z-20 flex flex-col justify-end bg-black/70" onClick={onClose}>
+    <div className="fixed inset-0 z-20 flex flex-col justify-end bg-bg/70" onClick={onClose}>
       <div
         ref={ref}
         role="dialog"
         aria-modal="true"
         aria-label={label}
         onClick={(e) => e.stopPropagation()}
-        className="flex flex-col gap-4 rounded-t-3xl bg-slate-900 p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] text-center"
+        className="flex flex-col gap-4 rounded-t-[18px] border-t border-line bg-surface p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] text-center"
       >
         {children}
       </div>
@@ -682,14 +802,17 @@ function SettingsSheet({
 }) {
   return (
     <Sheet label={t.language} onClose={onClose}>
-      <h2 className="text-2xl font-semibold">{t.language}</h2>
+      <h2 className="flex items-center justify-center gap-2 text-2xl font-semibold">
+        <GearSix size={28} weight="fill" className="text-muted" aria-hidden />
+        {t.language}
+      </h2>
       <LanguageSwitch t={t} lang={lang} onChange={onLang} />
       <div className="flex justify-center">
         <LargeTextSwitch t={t} on={largeText} onChange={onLargeText} />
       </div>
       <button
         onClick={onClose}
-        className={`min-h-16 rounded-2xl border-2 border-slate-400 text-2xl font-bold active:scale-95 ${FOCUS}`}
+        className={`min-h-16 rounded-btn border-2 border-line-2 bg-surface-2 text-2xl font-bold active:scale-95 ${FOCUS}`}
       >
         {t.close}
       </button>
@@ -720,9 +843,9 @@ function AlertBanner({
     <button
       onClick={onOpen}
       aria-haspopup="dialog"
-      className={`-mx-5 -mt-5 flex min-h-16 items-center justify-center gap-3 bg-green-700 px-4 text-xl font-semibold text-white active:bg-green-800 ${FOCUS} focus-visible:-outline-offset-8`}
+      className={`-mx-5 -mt-5 flex min-h-16 items-center justify-center gap-3 bg-ok px-4 text-xl font-semibold text-bg active:brightness-90 ${FOCUS} focus-visible:-outline-offset-8`}
     >
-      <span className="h-3 w-3 shrink-0 rounded-full bg-white motion-safe:animate-pulse" aria-hidden />
+      <span className="h-3 w-3 shrink-0 rounded-full bg-bg motion-safe:animate-pulse" aria-hidden />
       <span className="truncate">{text}</span>
     </button>
   );
@@ -767,14 +890,14 @@ function HelpSheet({
               <button
                 onClick={() => void confirmCancel()}
                 disabled={busy}
-                className={`min-h-16 rounded-2xl bg-white text-2xl font-bold text-black active:scale-95 disabled:opacity-60 ${FOCUS}`}
+                className={`min-h-16 rounded-btn bg-brand text-2xl font-bold text-bg active:scale-95 disabled:opacity-60 ${FOCUS}`}
               >
                 {t.yes}
               </button>
               <button
                 onClick={() => setConfirming(false)}
                 disabled={busy}
-                className={`min-h-16 rounded-2xl border-2 border-slate-400 text-2xl font-bold active:scale-95 disabled:opacity-60 ${FOCUS}`}
+                className={`min-h-16 rounded-btn border-2 border-line-2 bg-surface-2 text-2xl font-bold active:scale-95 disabled:opacity-60 ${FOCUS}`}
               >
                 {t.no}
               </button>
@@ -785,14 +908,14 @@ function HelpSheet({
             {!flaggedOk && (
               <button
                 onClick={() => setConfirming(true)}
-                className={`min-h-16 rounded-2xl bg-white text-2xl font-bold text-black active:scale-95 ${FOCUS}`}
+                className={`min-h-16 rounded-btn bg-brand text-2xl font-bold text-bg active:scale-95 ${FOCUS}`}
               >
                 {t.cancelRequest}
               </button>
             )}
             <button
               onClick={onClose}
-              className={`min-h-16 rounded-2xl border-2 border-slate-400 text-2xl font-bold active:scale-95 ${FOCUS}`}
+              className={`min-h-16 rounded-btn border-2 border-line-2 bg-surface-2 text-2xl font-bold active:scale-95 ${FOCUS}`}
             >
               {t.close}
             </button>
@@ -812,15 +935,15 @@ function FallCountdown({
   onCancel: () => void;
 }) {
   return (
-    <div role="alertdialog" aria-modal="true" aria-label={t.areYouOk} className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-6 bg-black/95 p-8 text-center">
+    <div role="alertdialog" aria-modal="true" aria-label={t.areYouOk} className="fixed inset-0 z-30 flex flex-col items-center justify-center gap-6 bg-bg p-8 text-center">
       <h1 className="text-5xl font-bold">{t.areYouOk}</h1>
-      <p className="text-2xl text-slate-300">{t.fallDetected}</p>
-      <div className="text-8xl font-black tabular-nums text-red-500">{secondsLeft}</div>
-      <p className="text-xl text-slate-300">{fill(t.callingIn, { s: secondsLeft })}</p>
+      <p className="text-2xl text-muted">{t.fallDetected}</p>
+      <div className="num text-8xl font-semibold text-alarm">{secondsLeft}</div>
+      <p className="text-xl text-muted">{fill(t.callingIn, { s: secondsLeft })}</p>
       <button
         onClick={onCancel}
         autoFocus
-        className={`h-24 w-full max-w-sm rounded-3xl bg-emerald-500 text-4xl font-bold text-black active:scale-95 ${FOCUS}`}
+        className={`h-24 w-full max-w-sm rounded-[18px] bg-ok text-4xl font-bold text-bg active:scale-95 ${FOCUS}`}
       >
         {t.imOk}
       </button>
@@ -843,13 +966,13 @@ function DemoControls({
   onShake: () => void;
 }) {
   return (
-    <div className="border-t border-slate-800 bg-slate-950 p-4 text-sm text-slate-300">
-      <div className="mb-2 text-xs uppercase tracking-widest text-slate-500">Demo controls</div>
+    <div className="border-t border-line bg-surface p-4 text-sm text-muted">
+      <div className="mb-2 text-xs uppercase tracking-widest text-muted">Demo controls</div>
       <div className="grid grid-cols-2 gap-2">
-        <button onClick={onFall} className="h-11 rounded-lg bg-slate-800 font-medium hover:bg-slate-700">
+        <button onClick={onFall} className="h-11 rounded-lg bg-surface-2 font-medium hover:bg-line-2">
           Simulate fall
         </button>
-        <button onClick={onShake} className="h-11 rounded-lg bg-slate-800 font-medium hover:bg-slate-700">
+        <button onClick={onShake} className="h-11 rounded-lg bg-surface-2 font-medium hover:bg-line-2">
           Simulate shake
         </button>
       </div>
@@ -861,18 +984,18 @@ function DemoControls({
           max={180}
           value={hrOverride ?? hr ?? 72}
           onChange={(e) => onHrOverride(Number(e.target.value))}
-          className="flex-1 accent-teal-500"
+          className="flex-1 accent-brand"
           aria-label="Simulated heart rate"
         />
         <button
           onClick={() => onHrOverride(null)}
           disabled={hrOverride == null}
-          className="h-9 rounded-lg bg-slate-800 px-3 font-medium hover:bg-slate-700 disabled:opacity-40"
+          className="h-9 rounded-lg bg-surface-2 px-3 font-medium hover:bg-line-2 disabled:opacity-40"
         >
           Auto
         </button>
       </label>
-      <div className="mt-1 text-xs text-slate-500">
+      <div className="mt-1 text-xs text-muted">
         HR above {HR_HIGH} or below {HR_LOW} for 10s triggers a vitals alert.
       </div>
     </div>
