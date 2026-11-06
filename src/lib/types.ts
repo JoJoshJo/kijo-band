@@ -36,6 +36,7 @@ export interface Resident {
   lastMotionAt: number;
   motionState?: MotionState | null; // band motion monitor; null/absent = unknown
   isGuest?: boolean;
+  active?: boolean; // false = removed from the floor (Charge view); /api/state only returns active residents
   createdAt: number;
 }
 

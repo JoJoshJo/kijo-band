@@ -1,7 +1,6 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
 import useSWR from "swr";
 import Header from "@/components/dashboard/Header";
 import { initials } from "@/components/dashboard/util";
@@ -15,17 +14,13 @@ const fetcher = async (url: string): Promise<StateResponse> => {
   return res.json();
 };
 
-/** /nurse — "Who's on shift?" First visit picks a nurse (remembered per tab); later visits go straight there. */
+/** /nurse/switch — "Who's on shift?" Picks a nurse for this tab (testing only; the main flow opens the main nurse). */
 export default function NursePicker({ logoSrc }: { logoSrc: string | null }) {
   useViewShortcut("nurse");
   const router = useRouter();
-  const [remembered, setRemembered] = useCurrentNurse();
+  const [, setRemembered] = useCurrentNurse();
   const { data, error } = useSWR<StateResponse>("/api/state", fetcher, { refreshInterval: 3000 });
 
-  // Already chose this session → go straight to that nurse's view.
-  useEffect(() => {
-    if (remembered) router.replace(nurseHref(remembered));
-  }, [remembered, router]);
 
   // Main nurse (demoConfig) first; the others keep their order and stay available.
   const nurses = (data?.nurses ?? [])

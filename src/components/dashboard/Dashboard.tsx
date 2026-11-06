@@ -5,10 +5,12 @@ import { useCallback, useState } from "react";
 import useSWR from "swr";
 import type { Resident, StateResponse } from "@/lib/types";
 import AlertQueue from "./AlertQueue";
-import { ArrowCounterClockwise, ChartBar, QrCode } from "@phosphor-icons/react";
+import { ArrowCounterClockwise, Broom, ChartBar, Plus, QrCode } from "@phosphor-icons/react";
 import Header, { HeaderButton } from "./Header";
 import { NurseBadge, NursePod } from "./NursePod";
 import NightReportModal from "./NightReportModal";
+import { AddPatientModal, ClearGuestsModal, MovePatientModal, RemovePatientModal } from "./PatientAdminModals";
+import type { PatientAction } from "./PatientMenu";
 import NurseBar from "./NurseBar";
 import QrModal from "./QrModal";
 import ResetModal from "./ResetModal";
@@ -46,8 +48,11 @@ export default function Dashboard({ logoSrc }: { logoSrc: string | null }) {
   const now = clientNow == null ? null : clientNow + skew;
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [modal, setModal] = useState<"qr" | "reset" | "report" | null>(null);
+  const [modal, setModal] = useState<"qr" | "reset" | "report" | "add" | "clear" | null>(null);
   const closeModal = useCallback(() => setModal(null), []);
+  const [manage, setManage] = useState<{ id: string; action: PatientAction } | null>(null);
+  const closeManage = useCallback(() => setManage(null), []);
+  const onManage = useCallback((r: Resident, action: PatientAction) => setManage({ id: r.id, action }), []);
 
   useViewShortcut("charge");
   const refresh = useCallback(() => void mutate(), [mutate]);
@@ -68,6 +73,8 @@ export default function Dashboard({ logoSrc }: { logoSrc: string | null }) {
   const badgeNurses = nurses.filter((n) => !podNurses.includes(n));
 
   const openCount = alerts.filter((a) => a.status === "open").length;
+  const guestCount = residents.filter((r) => r.isGuest).length;
+  const managed = manage ? residents.find((r) => r.id === manage.id) : undefined;
 
   return (
     <div className="flex min-h-screen flex-col bg-bg text-ink lg:h-screen">
@@ -103,6 +110,16 @@ export default function Dashboard({ logoSrc }: { logoSrc: string | null }) {
       {/* Phone/tablet: queue first, pods below, page scrolls. lg+: pods | 460px queue. */}
       <div className="flex flex-1 flex-col gap-4 p-4 lg:grid lg:min-h-0 lg:grid-cols-[minmax(0,1fr)_460px]">
         <div className="order-2 flex flex-col gap-2 lg:order-none lg:min-h-0 lg:overflow-y-auto lg:pr-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="label-caps mr-auto">Patients · {residents.length}</span>
+            <AdminButton icon={<Plus size={16} aria-hidden />} label="Add patient" onClick={() => setModal("add")} />
+            <AdminButton
+              icon={<Broom size={16} aria-hidden />}
+              label={`Clear test patients (${guestCount})`}
+              onClick={() => setModal("clear")}
+              disabled={guestCount === 0}
+            />
+          </div>
           {badgeNurses.length > 0 && (
             <div className="flex flex-wrap gap-2">
               {badgeNurses.map((n) => (
@@ -118,6 +135,7 @@ export default function Dashboard({ logoSrc }: { logoSrc: string | null }) {
               alerts={alerts}
               heartRateOf={heartRateOf}
               onSelect={setSelectedId}
+              onManage={onManage}
             />
           ))}
         </div>
@@ -143,6 +161,19 @@ export default function Dashboard({ logoSrc }: { logoSrc: string | null }) {
       {modal === "report" && <NightReportModal onClose={closeModal} />}
       {modal === "qr" && <QrModal onClose={closeModal} />}
       {modal === "reset" && <ResetModal onClose={closeModal} onDone={refresh} />}
+      {modal === "add" && <AddPatientModal nurses={nurses} onClose={closeModal} onDone={refresh} />}
+      {modal === "clear" && <ClearGuestsModal count={guestCount} onClose={closeModal} onDone={refresh} />}
+      {managed && manage?.action === "move" && (
+        <MovePatientModal resident={managed} nurses={nurses} onClose={closeManage} onDone={refresh} />
+      )}
+      {managed && manage?.action === "remove" && (
+        <RemovePatientModal
+          resident={managed}
+          openAlerts={alerts.filter((a) => a.residentId === managed.id).length}
+          onClose={closeManage}
+          onDone={refresh}
+        />
+      )}
 
       {selected && (
         <ResidentDrawer
@@ -157,5 +188,29 @@ export default function Dashboard({ logoSrc }: { logoSrc: string | null }) {
 
       <AutopilotPill status={autopilot.status} />
     </div>
+  );
+}
+
+function AdminButton({
+  icon,
+  label,
+  onClick,
+  disabled,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="inline-flex h-9 items-center gap-2 rounded-btn border border-line-2 px-3 text-sm font-medium text-ink transition-colors hover:bg-surface-2 disabled:opacity-50 disabled:hover:bg-transparent"
+    >
+      {icon}
+      {label}
+    </button>
   );
 }

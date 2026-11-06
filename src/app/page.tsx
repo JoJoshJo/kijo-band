@@ -2,9 +2,11 @@ import { CaretRight, QrCode, ShieldCheck, Stethoscope, Watch } from "@phosphor-i
 import Link from "next/link";
 import { findLogo } from "@/components/dashboard/findLogo";
 import ThemeToggle from "@/components/theme/ThemeToggle";
+import { nurseHref } from "@/components/dashboard/nurseHref";
+import { MAIN_NURSE_ID } from "@/lib/demoConfig";
 
 const ENTRIES = [
-  { href: "/nurse", icon: Stethoscope, title: "Nurse view", text: "Your residents and your alert queue" },
+  { href: nurseHref(MAIN_NURSE_ID), icon: Stethoscope, title: "Nurse view", text: "Your residents and your alert queue" },
   { href: "/patient", icon: Watch, title: "Patient view", text: "The Kijo Band, as a resident wears it" },
   { href: "/dashboard", icon: ShieldCheck, title: "Charge view", text: "Whole floor, escalations, Night Report" },
   { href: "/join", icon: QrCode, title: "Join as a resident", text: "Scan the QR and become a guest room" },

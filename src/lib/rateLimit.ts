@@ -27,6 +27,13 @@ export function rateLimit(key: string, limit: number, windowMs: number): number 
   return null;
 }
 
+/** Like rateLimit, but only checks: returns the seconds to wait if `key` is at its limit, without counting. */
+export function peekLimit(key: string, limit: number, windowMs: number): number | null {
+  const b = buckets.get(key);
+  if (!b || Date.now() - b.start >= windowMs || b.count < limit) return null;
+  return Math.max(1, Math.ceil((b.start + windowMs - Date.now()) / 1000));
+}
+
 export function tooManyRequests(retryAfterSec: number): Response {
   return Response.json(
     { error: "Too many requests" },

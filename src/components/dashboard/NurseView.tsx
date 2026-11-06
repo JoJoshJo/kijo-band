@@ -83,7 +83,7 @@ export default function NurseView({ nurseId, logoSrc }: { nurseId: string; logoS
 
   const switchNurse = () => {
     setRemembered("");
-    router.push("/nurse");
+    router.push("/nurse/switch");
   };
 
   const live = error ? "offline" : data ? "live" : "connecting";

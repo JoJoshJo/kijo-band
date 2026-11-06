@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import { nurseHref } from "./nurseHref";
 import { useSessionValue } from "./useSessionValue";
 
 /** nurse = /nurse/[id] (per nurse) · patient = /patient · charge = /dashboard (Grace's whole-floor view). */
@@ -10,9 +11,7 @@ export type View = "nurse" | "patient" | "charge";
 
 export const NURSE_KEY = "kijo-nurse"; // sessionStorage: who's on shift in this tab
 
-export function nurseHref(nurseId: string): string {
-  return nurseId ? `/nurse/${encodeURIComponent(nurseId)}` : "/nurse";
-}
+export { nurseHref };
 
 /** Remembered nurse for this tab ("" if none yet) and a setter. */
 export function useCurrentNurse(): [string, (id: string) => void] {

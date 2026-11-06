@@ -43,6 +43,7 @@ export function rowToResident(r: Row): Resident {
     lastMotionAt: num(r.last_motion_at),
     motionState: (r.motion_state as Resident["motionState"]) ?? null,
     ...(r.is_guest ? { isGuest: true } : {}),
+    ...(r.active === false ? { active: false } : {}),
     createdAt: num(r.created_at),
   };
 }
@@ -77,21 +78,25 @@ export function rowToAlert(r: Row): Alert {
   };
 }
 
-/** Residents, nurses, and active (not resolved) alerts. Never selects ack_token or device_id. */
+/**
+ * Active residents, nurses, and open (not resolved) alerts of active residents.
+ * Removed residents (active = FALSE) are hidden everywhere. Never selects ack_token or device_id.
+ */
 export async function getState(): Promise<StateResponse> {
   const sql = getSql();
   const [residents, nurses, alerts] = await Promise.all([
     sql`SELECT id, name, room, wing, language, can_speak, assigned_nurse_id, age, code_status,
                fall_risk, mobility, cognition, allergies, care_notes, emergency_contact, status,
-               heart_rate, last_motion_at, motion_state, is_guest, created_at
+               heart_rate, last_motion_at, motion_state, is_guest, active, created_at
         FROM residents
+        WHERE active
         ORDER BY wing, (NULLIF(regexp_replace(room, '[^0-9]', '', 'g'), ''))::int NULLS LAST, room`,
     sql`SELECT id, name, role, wing, status FROM nurses ORDER BY id`,
     sql`SELECT id, resident_id, type, priority, summary, transcript, heart_rate, assigned_nurse_id,
                escalated_to, assisting_nurse_ids, status, created_at, acknowledged_at, resolved_at,
                patient_message
         FROM alerts
-        WHERE status <> 'resolved'
+        WHERE status <> 'resolved' AND resident_id IN (SELECT id FROM residents WHERE active)
         ORDER BY priority ASC, created_at ASC`,
   ]);
   return {

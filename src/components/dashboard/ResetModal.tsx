@@ -2,8 +2,7 @@
 
 import { useState } from "react";
 import Modal from "./Modal";
-
-const SECRET_KEY = "kijo-admin-secret"; // sessionStorage: asked once per browser tab session
+import { ADMIN_SECRET_KEY as SECRET_KEY } from "./adminClient"; // sessionStorage: asked once per tab session
 
 export default function ResetModal({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
   const [stored, setStored] = useState(() => sessionStorage.getItem(SECRET_KEY) ?? "");
@@ -41,8 +40,8 @@ export default function ResetModal({ onClose, onDone }: { onClose: () => void; o
     <Modal title="Reset demo?" onClose={onClose}>
       <form onSubmit={reset} className="flex flex-col gap-4">
         <p className="text-sm text-ink">
-          Clears <b>all alerts</b> and <b>guest residents</b>, and resets every resident and nurse status. This
-          cannot be undone.
+          Clears <b>all alerts</b> and <b>guest residents</b>, brings back removed residents, and resets every
+          resident and nurse status. This cannot be undone.
         </p>
         {!stored && (
           <label className="flex flex-col gap-1 text-sm text-muted">

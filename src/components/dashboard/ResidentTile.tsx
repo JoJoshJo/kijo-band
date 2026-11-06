@@ -14,7 +14,9 @@ export default function ResidentTile({
   alert,
   onSelect,
   size = "md",
+  reserveCorner = false,
 }: {
+  reserveCorner?: boolean; // leave room top-right for the Charge view's patient menu
   size?: "md" | "lg"; // lg = per-nurse view (fewer, bigger tiles)
   resident: Resident;
   heartRate: number; // displayed value (may include client-side drift)
@@ -43,7 +45,7 @@ export default function ResidentTile({
       {p && open && p.flash && (
         <span aria-hidden className={`pointer-events-none absolute -inset-px rounded-card border-2 ${p.border} ${p.flash}`} />
       )}
-      <div className="flex items-center justify-between gap-2">
+      <div className={`flex items-center justify-between gap-2 ${reserveCorner ? "min-h-6 pr-8" : ""}`}>
         <span className="label-caps">{resident.isGuest ? "Live patient" : `Room ${resident.room}`}</span>
         <span className="flex items-center gap-1">
           {!resident.canSpeak && <span className="text-xs text-muted">Non-verbal</span>}

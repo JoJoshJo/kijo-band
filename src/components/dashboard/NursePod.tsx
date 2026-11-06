@@ -1,6 +1,7 @@
 "use client";
 
 import type { Alert, Nurse, Resident } from "@/lib/types";
+import PatientMenu, { type PatientAction } from "./PatientMenu";
 import ResidentTile from "./ResidentTile";
 import { initials, topAlertFor } from "./util";
 
@@ -32,7 +33,9 @@ export function NursePod({
   alerts,
   heartRateOf,
   onSelect,
+  onManage,
 }: {
+  onManage?: (resident: Resident, action: PatientAction) => void; // Charge view: per-tile menu
   nurse: Nurse;
   residents: Resident[];
   alerts: Alert[];
@@ -56,15 +59,26 @@ export function NursePod({
         </span>
       </header>
       <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
-        {residents.map((r) => (
-          <ResidentTile
-            key={r.id}
-            resident={r}
-            heartRate={heartRateOf(r)}
-            alert={topAlertFor(alerts, r.id)}
-            onSelect={onSelect}
-          />
-        ))}
+        {residents.map((r) => {
+          const tile = (
+            <ResidentTile
+              key={r.id}
+              resident={r}
+              heartRate={heartRateOf(r)}
+              alert={topAlertFor(alerts, r.id)}
+              onSelect={onSelect}
+              reserveCorner={!!onManage}
+            />
+          );
+          if (!onManage) return tile;
+          // The menu sits beside the tile button (not inside it): no nested interactive elements.
+          return (
+            <div key={r.id} className="relative flex min-w-0 [&>button]:w-full">
+              {tile}
+              <PatientMenu resident={r} onAction={(a) => onManage(r, a)} />
+            </div>
+          );
+        })}
       </div>
     </section>
   );
