@@ -66,12 +66,15 @@ export async function PATCH(req: NextRequest, ctx: RouteContext<"/api/alerts/[id
                   ELSE 'attention' END
                 FROM alerts WHERE resident_id = ${residentId} AND status <> 'resolved')
               WHERE id = ${residentId}`,
-          // Nurse stays "responding" only while they still have an acknowledged alert.
-          sql`UPDATE nurses SET status = CASE
-                WHEN EXISTS (SELECT 1 FROM alerts
-                             WHERE assigned_nurse_id = ${assignedNurseId} AND status = 'acknowledged')
-                THEN 'responding' ELSE 'available' END
-              WHERE id = ${assignedNurseId}`,
+          // Free the nurse(s) on this alert — assigned and, if escalated, the charge nurse — unless
+          // they still have another acknowledged alert (same rule as /api/alert/[id]/cancel).
+          sql`UPDATE nurses n SET status = 'available'
+              WHERE n.status = 'responding'
+                AND n.id IN (SELECT assigned_nurse_id FROM alerts WHERE id = ${id}
+                             UNION SELECT escalated_to FROM alerts WHERE id = ${id} AND escalated_to IS NOT NULL)
+                AND NOT EXISTS (SELECT 1 FROM alerts o
+                                WHERE o.status = 'acknowledged' AND o.id <> ${id}
+                                  AND (o.assigned_nurse_id = n.id OR o.escalated_to = n.id))`,
         ]);
         break;
       }

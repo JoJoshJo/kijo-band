@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { RESIDENT_OK_SUFFIX, residentSaysOk } from "@/lib/detection/alertRules";
 import type { Alert, Nurse, Resident } from "@/lib/types";
 import CountdownRing from "./CountdownRing";
 import {
@@ -98,7 +99,16 @@ export default function AlertCard({
         </div>
       </div>
 
-      <p className="mt-1.5 text-sm text-slate-200">{alert.summary}</p>
+      {alert.priority === 1 && residentSaysOk(alert.summary) ? (
+        <>
+          <span className="mt-1.5 inline-flex items-center gap-1.5 rounded border border-emerald-500/60 bg-emerald-500/15 px-2 py-0.5 text-xs font-semibold text-emerald-300">
+            ✓ Resident says OK — still check
+          </span>
+          <p className="mt-1 text-sm text-slate-200">{alert.summary.slice(0, -RESIDENT_OK_SUFFIX.length)}</p>
+        </>
+      ) : (
+        <p className="mt-1.5 text-sm text-slate-200">{alert.summary}</p>
+      )}
       {alert.transcript && <p className="mt-1 text-sm italic text-slate-400">“{alert.transcript}”</p>}
 
       <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400">
