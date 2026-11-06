@@ -28,7 +28,8 @@ import {
   type Icon,
 } from "@phosphor-icons/react";
 import { useMotionDetection } from "./_lib/useMotionDetection";
-import { useVoiceTrigger, type VoiceProblem } from "./_lib/useVoiceTrigger";
+import { useVoiceTrigger, type VoiceProblem, type VoiceSnapshot } from "./_lib/useVoiceTrigger";
+import { isEmergency } from "@/lib/detection/voice";
 import PulseCheck from "./PulseCheck";
 import TalkButton from "./TalkButton";
 import type { ActivityEvent } from "@/lib/detection/activity";
@@ -159,6 +160,13 @@ function Band({ residentId, embedded }: { residentId: string; embedded: boolean 
     return () => clearInterval(id);
   }, []);
 
+  const { speak, stop: stopSpeaking, speaking } = useSpeak(lang);
+
+  // ?debug=1: voice debug panel (transcripts on screen only).
+  const debug = useSearchParams().get("debug") === "1";
+  const [triageDebug, setTriageDebug] = useState<{ result: string; ms: number } | null>(null);
+  const [rateLimitedAt, setRateLimitedAt] = useState(0);
+
   // ── Sending alerts ──
   const [sending, setSending] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
@@ -219,20 +227,31 @@ function Band({ residentId, embedded }: { residentId: string; embedded: boolean 
   /** POST to /api/alert or /api/triage with the shared 10s client-side limit and error toasts. */
   const postAlert = useCallback(
     async (url: "/api/alert" | "/api/triage", body: Record<string, unknown>) => {
-      if (Date.now() - lastSentRef.current < ALERT_RATE_LIMIT_MS) {
-        showToast(STRINGS[lang].waitMoment);
-        return;
-      }
+      // Within the 10 s per-resident limit: say so gently instead of silently dropping it.
+      const alreadySent = () => {
+        showToast(STRINGS[lang].alreadySent);
+        speak(STRINGS[lang].alreadySent);
+        setRateLimitedAt(Date.now());
+      };
+      if (Date.now() - lastSentRef.current < ALERT_RATE_LIMIT_MS) return alreadySent();
       lastSentRef.current = Date.now();
       setSending(true);
+      const t0 = performance.now();
       try {
         const res = await fetch(url, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ residentId, heartRate: hrRef.current ?? undefined, ...body }),
         });
+        if (debug && url === "/api/triage") {
+          const j = (await res.clone().json().catch(() => ({}))) as { alert?: { priority?: number }; triage?: string };
+          setTriageDebug({
+            result: res.ok ? `P${j.alert?.priority ?? "?"} (${j.triage ?? "?"})` : `HTTP ${res.status}`,
+            ms: Math.round(performance.now() - t0),
+          });
+        }
         if (res.ok) vibrateSent();
-        else if (res.status === 429) showToast(STRINGS[lang].waitMoment);
+        else if (res.status === 429) alreadySent();
         else {
           lastSentRef.current = 0; // let them retry right away
           showToast(STRINGS[lang].sendFailed);
@@ -245,7 +264,7 @@ function Band({ residentId, embedded }: { residentId: string; embedded: boolean 
         setSending(false);
       }
     },
-    [lang, mutate, residentId, showToast],
+    [lang, mutate, residentId, showToast, speak, debug],
   );
   const sendAlert = useCallback(
     (type: BandAlertType, source?: AlertSource) => postAlert("/api/alert", { type, source }),
@@ -335,7 +354,6 @@ function Band({ residentId, embedded }: { residentId: string; embedded: boolean 
   }, [fallDeadline, startFallCountdown]);
 
   // ── Spoken feedback: say out loud when help has been called and when the nurse is on the way ──
-  const { speak, stop: stopSpeaking, speaking } = useSpeak(lang);
   const announcedRef = useRef<{ id: string | null; status: Alert["status"] | null } | null>(null);
   useEffect(() => {
     if (!data || !started) return;
@@ -358,7 +376,12 @@ function Band({ residentId, embedded }: { residentId: string; embedded: boolean 
     enabled: started && canSpeak,
     paused: speaking,
     lang,
-    onTrigger: (sentence) => void postAlert("/api/triage", { transcript: sentence, language: lang }),
+    debug,
+    onTrigger: (sentence) => {
+      // "I fell" / "I can't breathe" must not be swallowed by the 10 s limit after e.g. "water".
+      if (isEmergency(sentence, lang)) lastSentRef.current = 0;
+      void postAlert("/api/triage", { transcript: sentence, language: lang });
+    },
     onTalk: (sentence) => void postAlert("/api/triage", { transcript: sentence, language: lang }),
     // "Kijo" alone: chime, then "Yes?" in the resident's language; the next sentence is the request.
     onWake: () => {
@@ -554,6 +577,14 @@ function Band({ residentId, embedded }: { residentId: string; embedded: boolean 
           />
         )}
 
+        {debug && (
+          <VoiceDebug
+            snap={voice.snapshot}
+            triage={triageDebug}
+            rateLimited={rateLimitedAt > 0 && now - rateLimitedAt < 5000}
+          />
+        )}
+
         {pulseOpen && <PulseCheck t={t} onClose={() => setPulseOpen(false)} onResult={onPulseResult} />}
 
         {fallSecondsLeft != null && (
@@ -581,6 +612,37 @@ function Band({ residentId, embedded }: { residentId: string; embedded: boolean 
  * One line under the header: "● Listening" while background listening is on, a "Tap to resume
  * listening" button when iOS stopped it, or a hint when voice / fall detection can't work here.
  */
+/** ?debug=1 only. Transcripts are shown here and nowhere else (never logged, never sent). */
+function VoiceDebug({
+  snap,
+  triage,
+  rateLimited,
+}: {
+  snap: VoiceSnapshot;
+  triage: { result: string; ms: number } | null;
+  rateLimited: boolean;
+}) {
+  const rows: [string, string][] = [
+    ["state", `${snap.state} · ${snap.mode}${snap.needsTap ? " · needs tap" : ""}${snap.problem ? ` · ${snap.problem}` : ""}`],
+    ["engine", `${snap.engine} · ${snap.lang}`],
+    ["interim", snap.lastInterim || "—"],
+    ["final", snap.lastFinal || "—"],
+    ["decision", rateLimited ? "rate-limited (Already sent)" : snap.decision || "—"],
+    ["triage", triage ? `${triage.result} · ${triage.ms} ms` : "—"],
+    ["restarts", `${snap.restarts} · last error ${snap.lastError || "—"}`],
+  ];
+  return (
+    <section aria-label="Voice debug" className="rounded-card border border-line bg-surface p-3 font-mono text-base">
+      {rows.map(([k, v]) => (
+        <div key={k} className="flex gap-2">
+          <span className="w-20 shrink-0 text-muted">{k}</span>
+          <span className="break-words" data-debug={k}>{v}</span>
+        </div>
+      ))}
+    </section>
+  );
+}
+
 function VoiceStatus({
   t,
   canSpeak,

@@ -57,6 +57,8 @@ export async function createAlert(input: NewAlert): Promise<CreateAlertResult> {
         AND NOT EXISTS (
           SELECT 1 FROM alerts a
           WHERE a.resident_id = ${residentId} AND a.created_at > ${now - ALERT_RATE_LIMIT_MS}
+            -- an emergency (P1) is only held back by another recent P1, never by e.g. "water"
+            AND (${priority}::int <> 1 OR a.priority = 1)
         )
       RETURNING id, resident_id, type, priority, summary, transcript, heart_rate, assigned_nurse_id,
                 escalated_to, assisting_nurse_ids, status, created_at, acknowledged_at, resolved_at,
