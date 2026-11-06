@@ -6,6 +6,7 @@ import type { Resident, StateResponse } from "@/lib/types";
 import AlertQueue from "./AlertQueue";
 import Header from "./Header";
 import { NurseBadge, NursePod } from "./NursePod";
+import NightReportModal from "./NightReportModal";
 import QrModal from "./QrModal";
 import ResetModal from "./ResetModal";
 import { useAlarmSounds } from "./useAlarmSounds";
@@ -35,7 +36,7 @@ export default function Dashboard({ logoSrc }: { logoSrc: string | null }) {
   const now = clientNow == null ? null : clientNow + skew;
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [modal, setModal] = useState<"qr" | "reset" | null>(null);
+  const [modal, setModal] = useState<"qr" | "reset" | "report" | null>(null);
   const closeModal = useCallback(() => setModal(null), []);
 
   useViewShortcut("nurse");
@@ -73,6 +74,13 @@ export default function Dashboard({ logoSrc }: { logoSrc: string | null }) {
               } hover:bg-slate-800`}
             >
               {sound.muted ? "🔇 Muted" : sound.ready ? "🔊 Sound on" : "🔈 Click to enable sound"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setModal("report")}
+              className="rounded border border-slate-600 px-3 py-1 text-sm text-slate-200 hover:bg-slate-800"
+            >
+              Night Report
             </button>
             <button
               type="button"
@@ -124,6 +132,7 @@ export default function Dashboard({ logoSrc }: { logoSrc: string | null }) {
         />
       </div>
 
+      {modal === "report" && <NightReportModal onClose={closeModal} />}
       {modal === "qr" && <QrModal onClose={closeModal} />}
       {modal === "reset" && <ResetModal onClose={closeModal} onDone={refresh} />}
 
