@@ -33,6 +33,10 @@ export interface BandStrings {
   /** {s} = seconds left */
   callingIn: string;
   listening: string;
+  /** Add-to-Home-Screen hint on the Start screen */
+  installTitle: string;
+  installIos: string;
+  installButton: string;
 }
 
 export const STRINGS: Record<Language, BandStrings> = {
@@ -63,6 +67,9 @@ export const STRINGS: Record<Language, BandStrings> = {
     imOk: "I'm OK",
     callingIn: "Calling for help in {s}s",
     listening: "Listening…",
+    installTitle: "Keep Kijo Band on your home screen",
+    installIos: "Tap Share, then “Add to Home Screen”.",
+    installButton: "Install app",
   },
   fr: {
     loading: "Chargement…",
@@ -91,6 +98,9 @@ export const STRINGS: Record<Language, BandStrings> = {
     imOk: "Ça va",
     callingIn: "Appel à l'aide dans {s} s",
     listening: "À l'écoute…",
+    installTitle: "Gardez Kijo Band sur votre écran d'accueil",
+    installIos: "Touchez Partager, puis « Sur l'écran d'accueil ».",
+    installButton: "Installer l'app",
   },
   es: {
     loading: "Cargando…",
@@ -119,6 +129,9 @@ export const STRINGS: Record<Language, BandStrings> = {
     imOk: "Estoy bien",
     callingIn: "Pidiendo ayuda en {s} s",
     listening: "Escuchando…",
+    installTitle: "Tenga Kijo Band en su pantalla de inicio",
+    installIos: "Toque Compartir y luego «Añadir a pantalla de inicio».",
+    installButton: "Instalar app",
   },
 };
 
