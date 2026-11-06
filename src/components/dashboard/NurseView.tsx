@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
 import type { Alert, Nurse, Resident, StateResponse } from "@/lib/types";
 import AlertQueue from "./AlertQueue";
+import ConnectionBanner from "./ConnectionBanner";
 import Header from "./Header";
 import ResidentDrawer from "./ResidentDrawer";
 import ResidentTile from "./ResidentTile";
@@ -29,10 +30,13 @@ export default function NurseView({ nurseId, logoSrc }: { nurseId: string; logoS
   const [remembered, setRemembered] = useCurrentNurse();
 
   const [skew, setSkew] = useState(0);
+  const [lastOkAt, setLastOkAt] = useState<number | null>(null);
   const { track, displayHr } = useHeartRateDrift();
+  // On errors SWR keeps the last good `data`: residents and queue stay on screen under the banner.
   const { data, error, mutate } = useSWR<StateResponse>("/api/state", fetcher, {
     refreshInterval: 1000,
     onSuccess: (d) => {
+      setLastOkAt(Date.now());
       setSkew(d.serverTime - Date.now());
       track(d.residents);
     },
@@ -132,6 +136,8 @@ export default function NurseView({ nurseId, logoSrc }: { nurseId: string; logoS
         }
       />
 
+      <ConnectionBanner offline={!!error} lastOkAt={lastOkAt} now={clientNow} />
+
       {data && nurse && (
         <TeamEmergencies nurse={nurse} alerts={allAlerts} residents={data.residents} onChanged={refresh} />
       )}
@@ -139,6 +145,14 @@ export default function NurseView({ nurseId, logoSrc }: { nurseId: string; logoS
       {/* Phone/tablet: queue on top, tiles (2 columns) below, page scrolls. lg+: tiles | 460px queue. */}
       <div className="flex flex-1 flex-col gap-3 p-3 lg:grid lg:min-h-0 lg:grid-cols-[minmax(0,1fr)_460px]">
         <div className="order-2 grid auto-rows-min grid-cols-2 gap-3 lg:order-none lg:min-h-0 lg:overflow-y-auto lg:pr-1 xl:grid-cols-4">
+          {data && nurse && residents.length === 0 && (
+            <div className="col-span-full flex flex-col items-center gap-2 rounded-xl border border-dashed border-slate-700 px-6 py-12 text-center">
+              <p className="text-lg font-semibold text-slate-200">No residents assigned to {nurse.name} tonight</p>
+              <p className="text-sm text-slate-400">
+                Residents appear here as soon as they are assigned. Team emergencies still show above.
+              </p>
+            </div>
+          )}
           {residents.map((r) => (
             <ResidentTile
               key={r.id}
@@ -160,6 +174,8 @@ export default function NurseView({ nurseId, logoSrc }: { nurseId: string; logoS
           onChanged={refresh}
           onSelectResident={(id) => residents.some((r) => r.id === id) && setSelectedId(id)}
           actingNurseId={nurseId}
+          loading={!data}
+          residentCount={residents.length}
         />
         </div>
       </div>

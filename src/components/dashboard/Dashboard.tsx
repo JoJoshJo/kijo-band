@@ -13,6 +13,7 @@ import ResetModal from "./ResetModal";
 import { useAlarmSounds } from "./useAlarmSounds";
 import ResidentDrawer from "./ResidentDrawer";
 import { AutopilotPill, useAutopilot } from "./useAutopilot";
+import ConnectionBanner from "./ConnectionBanner";
 import { useDemoShortcuts } from "./useDemoShortcuts";
 import { useEscalation } from "./useEscalation";
 import { useHeartRateDrift } from "./useHeartRateDrift";
@@ -27,10 +28,13 @@ const fetcher = async (url: string): Promise<StateResponse> => {
 
 export default function Dashboard({ logoSrc }: { logoSrc: string | null }) {
   const [skew, setSkew] = useState(0); // serverTime - clientTime, so timers match the DB clock
+  const [lastOkAt, setLastOkAt] = useState<number | null>(null);
   const { track, displayHr } = useHeartRateDrift();
+  // On errors SWR keeps the last good `data`, so the floor stays on screen under the banner.
   const { data, error, mutate } = useSWR<StateResponse>("/api/state", fetcher, {
     refreshInterval: 1000,
     onSuccess: (d) => {
+      setLastOkAt(Date.now());
       setSkew(d.serverTime - Date.now());
       track(d.residents);
     },
@@ -112,6 +116,7 @@ export default function Dashboard({ logoSrc }: { logoSrc: string | null }) {
           </>
         }
       />
+      <ConnectionBanner offline={!!error} lastOkAt={lastOkAt} now={clientNow} />
 
       <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_460px] gap-3 p-3">
         {/* Nurse pods */}
@@ -142,6 +147,8 @@ export default function Dashboard({ logoSrc }: { logoSrc: string | null }) {
           now={now}
           onChanged={refresh}
           onSelectResident={setSelectedId}
+          loading={!data}
+          residentCount={residents.length}
         />
       </div>
 
