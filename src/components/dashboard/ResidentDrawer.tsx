@@ -109,7 +109,7 @@ export default function ResidentDrawer({
           <div className="min-w-0">
             <div className="text-xl font-semibold text-ink">{resident.name}</div>
             <div className="text-sm text-muted">
-              {resident.age} y · Room {resident.room} · {resident.wing} wing
+              {resident.isGuest ? `Live patient · ${resident.room}` : `${resident.age} y · Room ${resident.room} · ${resident.wing} wing`}
             </div>
             <div className="text-sm text-muted">
               Nurse: <span className="text-ink">{nurse?.name ?? "—"}</span>

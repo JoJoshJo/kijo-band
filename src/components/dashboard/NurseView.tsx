@@ -8,7 +8,9 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
 import type { Alert, Nurse, Resident, StateResponse } from "@/lib/types";
+import { MAIN_NURSE_ID } from "@/lib/demoConfig";
 import AlertQueue from "./AlertQueue";
+import LivePatients from "./LivePatients";
 import ConnectionBanner from "./ConnectionBanner";
 import Header from "./Header";
 import ResidentDrawer from "./ResidentDrawer";
@@ -18,7 +20,7 @@ import { useAlarmSounds } from "./useAlarmSounds";
 import { useDemoShortcuts } from "./useDemoShortcuts";
 import { useEscalation } from "./useEscalation";
 import { useHeartRateDrift } from "./useHeartRateDrift";
-import { ALERT_LABEL, patchAlert, topAlertFor, useNow } from "./util";
+import { ALERT_LABEL, patchAlert, residentTitle, topAlertFor, useNow } from "./util";
 import { useCurrentNurse, useViewShortcut } from "./views";
 
 const fetcher = async (url: string): Promise<StateResponse> => {
@@ -85,6 +87,7 @@ export default function NurseView({ nurseId, logoSrc }: { nurseId: string; logoS
   };
 
   const live = error ? "offline" : data ? "live" : "connecting";
+  const isMain = nurseId === MAIN_NURSE_ID; // main nurse: Live patients on top, demo residents collapsed
 
   if (data && (!nurse || nurse.role === "Charge")) {
     return (
@@ -154,27 +157,38 @@ export default function NurseView({ nurseId, logoSrc }: { nurseId: string; logoS
 
       {/* Phone/tablet: queue on top, tiles (2 columns) below, page scrolls. lg+: tiles | 460px queue. */}
       <div className="flex flex-1 flex-col gap-4 p-4 lg:grid lg:min-h-0 lg:grid-cols-[minmax(0,1fr)_460px]">
-        <div className="order-2 grid auto-rows-min grid-cols-2 gap-2 lg:order-none lg:min-h-0 lg:overflow-y-auto lg:pr-1 xl:grid-cols-4">
-          {data && nurse && residents.length === 0 && (
-            <div className="col-span-full flex flex-col items-center gap-2 rounded-card border border-dashed border-line-2 px-6 py-12 text-center">
-              <Bed size={40} className="text-muted" aria-hidden />
-              <p className="text-xl font-semibold text-ink">No residents assigned to {nurse.name} tonight</p>
-              <p className="text-sm text-muted">
-                Residents appear here as soon as they are assigned. Team emergencies still show above.
-              </p>
-            </div>
-          )}
-          {residents.map((r) => (
-            <ResidentTile
-              key={r.id}
-              size="lg"
-              resident={r}
-              heartRate={heartRateOf(r)}
-              alert={topAlertFor(myAlerts ?? [], r.id)}
+        {isMain ? (
+          <div className="order-2 lg:order-none lg:min-h-0 lg:overflow-y-auto lg:pr-1">
+            <LivePatients
+              residents={residents}
+              alerts={myAlerts ?? []}
+              heartRateOf={heartRateOf}
               onSelect={setSelectedId}
             />
-          ))}
-        </div>
+          </div>
+        ) : (
+          <div className="order-2 grid auto-rows-min grid-cols-2 gap-2 lg:order-none lg:min-h-0 lg:overflow-y-auto lg:pr-1 xl:grid-cols-4">
+            {data && nurse && residents.length === 0 && (
+              <div className="col-span-full flex flex-col items-center gap-2 rounded-card border border-dashed border-line-2 px-6 py-12 text-center">
+                <Bed size={40} className="text-muted" aria-hidden />
+                <p className="text-xl font-semibold text-ink">No residents assigned to {nurse.name} tonight</p>
+                <p className="text-sm text-muted">
+                  Residents appear here as soon as they are assigned. Team emergencies still show above.
+                </p>
+              </div>
+            )}
+            {residents.map((r) => (
+              <ResidentTile
+                key={r.id}
+                size="lg"
+                resident={r}
+                heartRate={heartRateOf(r)}
+                alert={topAlertFor(myAlerts ?? [], r.id)}
+                onSelect={setSelectedId}
+              />
+            ))}
+          </div>
+        )}
 
         <div className="order-1 flex flex-col lg:order-none lg:min-h-0">
         <AlertQueue
@@ -238,7 +252,7 @@ function TeamEmergencies({
             <Siren size={18} weight="bold" className="kijo-flash-fast text-alarm" aria-hidden />
             <span className="font-semibold">Team emergency</span>
             <span className="text-ink/90">
-              Room {r?.room ?? "?"} · {r?.name ?? "Unknown"} · {ALERT_LABEL[a.type]}
+              {residentTitle(r)} · {ALERT_LABEL[a.type]}
             </span>
             <span className="ml-auto shrink-0">
               {assisting ? (

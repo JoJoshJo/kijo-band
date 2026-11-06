@@ -14,7 +14,7 @@ import {
   Vibrate,
   type Icon,
 } from "@phosphor-icons/react";
-import type { Alert, AlertPriority, AlertType, Nurse } from "@/lib/types";
+import type { Alert, AlertPriority, AlertType, Nurse, Resident } from "@/lib/types";
 
 // IEC 60601-1-8 style: P1 red fast flash · P2 yellow slow flash · P3 light blue steady · OK green.
 // Red/yellow are reserved for alarms — don't use them for anything else on the dashboard.
@@ -56,6 +56,12 @@ export const ALERT_ICON: Record<AlertType, Icon> = {
   inactivity: Pause,
   up_at_night: Moon,
 };
+
+/** "Josh · G1" for QR guests (live patients), "Room 3 · Mr. Ortiz" for demo residents. */
+export function residentTitle(r: Pick<Resident, "name" | "room" | "isGuest"> | undefined): string {
+  if (!r) return "Unknown resident";
+  return r.isGuest ? `${r.name} · ${r.room}` : `Room ${r.room} · ${r.name}`;
+}
 
 export const ESCALATION_MS = 90_000;
 

@@ -2,11 +2,17 @@
 
 import { useState, useSyncExternalStore, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import { NAME_ERROR_TEXT, NAME_MAX, validateName, type NameError } from "@/lib/guestName";
 import type { Language } from "@/lib/types";
 
 const DEVICE_KEY = "kijo.deviceId";
 const RESIDENT_KEY = "kijo.residentId"; // same key /band falls back to
-const NAME_MAX = 20;
+
+const UI: Record<Language, { name: string; placeholder: string; language: string; join: string; joining: string }> = {
+  en: { name: "Your name", placeholder: "e.g. Sam", language: "Language", join: "Get my band", joining: "Joining…" },
+  fr: { name: "Votre prénom", placeholder: "ex. Camille", language: "Langue", join: "Obtenir mon bracelet", joining: "Connexion…" },
+  es: { name: "Su nombre", placeholder: "p. ej. Lucía", language: "Idioma", join: "Obtener mi pulsera", joining: "Conectando…" },
+};
 
 const LANG_OPTIONS: { code: Language; label: string }[] = [
   { code: "en", label: "English" },
@@ -36,7 +42,12 @@ function browserLanguage(): Language {
   return l === "fr" || l === "es" ? l : "en";
 }
 
-type Status = { kind: "idle" } | { kind: "joining" } | { kind: "full" } | { kind: "error"; message: string };
+type Status =
+  | { kind: "idle" }
+  | { kind: "joining" }
+  | { kind: "full" }
+  | { kind: "error"; message: string }
+  | { kind: "name"; error: NameError };
 
 export default function JoinForm() {
   const router = useRouter();
@@ -50,15 +61,20 @@ export default function JoinForm() {
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     if (status.kind === "joining") return;
+    const checked = validateName(name);
+    if (!checked.ok) return setStatus({ kind: "name", error: checked.error });
     setStatus({ kind: "joining" });
     try {
       const res = await fetch("/api/join", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ deviceId: getDeviceId(), name: name.trim() || undefined, language: lang }),
+        body: JSON.stringify({ deviceId: getDeviceId(), name: checked.name, language: lang }),
       });
       const body = await res.json().catch(() => ({}));
       if (res.status === 409 && body.full) return setStatus({ kind: "full" });
+      if (res.status === 400 && typeof body.code === "string" && body.code in NAME_ERROR_TEXT.en) {
+        return setStatus({ kind: "name", error: body.code as NameError });
+      }
       if (!res.ok || typeof body.residentId !== "string") {
         return setStatus({ kind: "error", message: body.error ?? `Something went wrong (${res.status})` });
       }
@@ -81,22 +97,39 @@ export default function JoinForm() {
   }
 
   const joining = status.kind === "joining";
+  const t = UI[lang];
+  const nameError = status.kind === "name" ? NAME_ERROR_TEXT[lang][status.error] : null;
   return (
-    <form onSubmit={onSubmit} className="mt-8 flex w-full max-w-sm flex-col gap-6">
+    <form onSubmit={onSubmit} noValidate className="mt-8 flex w-full max-w-sm flex-col gap-6">
       <label className="flex flex-col gap-2">
-        <span className="text-xl text-muted">Your name (optional)</span>
+        <span className="text-xl text-muted">{t.name}</span>
         <input
           value={name}
-          onChange={(e) => setName(e.target.value.slice(0, NAME_MAX))}
-          maxLength={NAME_MAX}
+          onChange={(e) => {
+            setName(e.target.value.slice(0, NAME_MAX + 5)); // validation explains the limit
+            if (status.kind === "name") setStatus({ kind: "idle" });
+          }}
+          required
+          maxLength={NAME_MAX + 5}
           autoComplete="given-name"
-          placeholder="Guest"
-          className="rounded-btn border border-line-2 bg-surface px-4 py-3 text-xl text-ink outline-none placeholder:text-muted focus:border-brand"
+          autoCapitalize="words"
+          enterKeyHint="go"
+          placeholder={t.placeholder}
+          aria-invalid={nameError ? true : undefined}
+          aria-describedby={nameError ? "join-name-error" : undefined}
+          className={`rounded-btn border bg-surface px-4 py-3 text-xl text-ink outline-none placeholder:text-muted focus:border-brand ${
+            nameError ? "border-ink" : "border-line-2"
+          }`}
         />
+        {nameError && (
+          <span id="join-name-error" role="alert" className="text-lg text-ink">
+            {nameError}
+          </span>
+        )}
       </label>
 
       <fieldset className="flex flex-col gap-2">
-        <legend className="mb-2 text-xl text-muted">Language</legend>
+        <legend className="mb-2 text-xl text-muted">{t.language}</legend>
         <div className="grid grid-cols-3 gap-2">
           {LANG_OPTIONS.map((o) => (
             <button
@@ -105,7 +138,7 @@ export default function JoinForm() {
               aria-pressed={lang === o.code}
               onClick={() => setLanguage(o.code)}
               className={`rounded-btn border px-2 py-3 text-xl font-medium ${
-                lang === o.code ? "border-brand bg-brand text-bg" : "border-line-2 bg-surface text-ink"
+                lang === o.code ? "border-brand bg-brand text-on-brand" : "border-line-2 bg-surface text-ink"
               }`}
             >
               {o.label}
@@ -117,11 +150,15 @@ export default function JoinForm() {
       <button
         type="submit"
         disabled={joining}
-        className="mt-2 rounded-full bg-brand py-4 text-2xl font-bold text-bg shadow-[0_0_40px_rgba(43,179,163,0.35)] active:scale-95 disabled:opacity-60"
+        className="mt-2 rounded-full bg-brand py-4 text-2xl font-semibold text-on-brand shadow-[0_0_40px_rgba(43,179,163,0.35)] active:scale-95 disabled:opacity-60"
       >
-        {joining ? "Joining…" : "Get my band"}
+        {joining ? t.joining : t.join}
       </button>
-      {status.kind === "error" && <p className="text-center text-xl text-warn">{status.message}</p>}
+      {status.kind === "error" && (
+        <p role="alert" className="text-center text-xl text-ink">
+          {status.message}
+        </p>
+      )}
     </form>
   );
 }

@@ -8,7 +8,7 @@ import useSWR from "swr";
 import Header from "@/components/dashboard/Header";
 import { useEscalation } from "@/components/dashboard/useEscalation";
 import { useSessionValue } from "@/components/dashboard/useSessionValue";
-import { ALERT_LABEL, PRIORITY, useNow } from "@/components/dashboard/util";
+import { ALERT_LABEL, PRIORITY, residentTitle, useNow } from "@/components/dashboard/util";
 import { nurseHref, useViewShortcut } from "@/components/dashboard/views";
 import type { Alert, StateResponse } from "@/lib/types";
 
@@ -96,7 +96,7 @@ export default function PatientView({ logoSrc }: { logoSrc: string | null }) {
               <optgroup key={w} label={`${w} wing`}>
                 {list.map((r) => (
                   <option key={r.id} value={r.id}>
-                    Room {r.room} · {r.name}
+                    {residentTitle(r)}
                     {r.canSpeak ? "" : " (non-verbal)"}
                   </option>
                 ))}

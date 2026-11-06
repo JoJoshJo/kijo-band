@@ -14,6 +14,7 @@ import {
   initials,
   nurseShort,
   patchAlert,
+  residentTitle,
 } from "./util";
 
 // Buttons: 48px tall on touch screens, 36px at lg.
@@ -101,7 +102,7 @@ export default function AlertCard({
             onClick={() => resident && onSelectResident(resident.id)}
             className="mt-2 rounded text-left text-base font-semibold text-ink hover:underline"
           >
-            Room {resident?.room ?? "?"} · {resident?.name ?? "Unknown resident"}
+            {residentTitle(resident)}
           </button>
         </div>
         <div className="flex flex-col items-end gap-1">

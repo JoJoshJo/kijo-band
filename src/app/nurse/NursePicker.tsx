@@ -6,6 +6,7 @@ import useSWR from "swr";
 import Header from "@/components/dashboard/Header";
 import { initials } from "@/components/dashboard/util";
 import { nurseHref, useCurrentNurse, useViewShortcut } from "@/components/dashboard/views";
+import { MAIN_NURSE_ID } from "@/lib/demoConfig";
 import type { StateResponse } from "@/lib/types";
 
 const fetcher = async (url: string): Promise<StateResponse> => {
@@ -26,7 +27,10 @@ export default function NursePicker({ logoSrc }: { logoSrc: string | null }) {
     if (remembered) router.replace(nurseHref(remembered));
   }, [remembered, router]);
 
-  const nurses = (data?.nurses ?? []).filter((n) => n.role !== "Charge");
+  // Main nurse (demoConfig) first; the others keep their order and stay available.
+  const nurses = (data?.nurses ?? [])
+    .filter((n) => n.role !== "Charge")
+    .sort((a, b) => Number(b.id === MAIN_NURSE_ID) - Number(a.id === MAIN_NURSE_ID));
 
   return (
     <div className="flex h-screen flex-col bg-bg text-ink">
@@ -49,7 +53,14 @@ export default function NursePicker({ logoSrc }: { logoSrc: string | null }) {
                 <span className="flex h-20 w-20 items-center justify-center rounded-full border border-line-2 bg-surface-2 text-2xl font-semibold text-ink">
                   {initials(n.name)}
                 </span>
-                <span className="text-xl font-semibold text-ink">{n.name}</span>
+                <span className="flex flex-col items-center gap-1">
+                  <span className="text-xl font-semibold text-ink">{n.name}</span>
+                  {n.id === MAIN_NURSE_ID && (
+                    <span className="rounded-full border border-line-2 bg-surface-2 px-2 text-xs font-medium text-ink">
+                      Main
+                    </span>
+                  )}
+                </span>
                 <span className="text-sm text-muted">
                   {n.role} · {n.wing} · {count} residents
                 </span>

@@ -32,7 +32,7 @@ export default function ResidentTile({
     <button
       type="button"
       onClick={() => onSelect(resident.id)}
-      aria-label={`Room ${resident.room}, ${resident.name}, ${heartRate} bpm${hrWarning ? " (HR warning)" : ""}${
+      aria-label={`${resident.isGuest ? `${resident.name}, ${resident.room}` : `Room ${resident.room}, ${resident.name}`}, ${heartRate} bpm${hrWarning ? " (HR warning)" : ""}${
         alert ? `, ${p!.label} ${ALERT_LABEL[alert.type]}${open ? "" : " acknowledged"}` : ", OK"
       }${resident.motionState ? `, ${MOTION_LABEL[resident.motionState]}` : ""} — open quick info`}
       className={`relative flex flex-col gap-1 rounded-card border text-left transition-colors ${lg ? "p-4" : "p-3"} ${
@@ -44,7 +44,7 @@ export default function ResidentTile({
         <span aria-hidden className={`pointer-events-none absolute -inset-px rounded-card border-2 ${p.border} ${p.flash}`} />
       )}
       <div className="flex items-center justify-between gap-2">
-        <span className="label-caps">Room {resident.room}</span>
+        <span className="label-caps">{resident.isGuest ? "Live patient" : `Room ${resident.room}`}</span>
         <span className="flex items-center gap-1">
           {!resident.canSpeak && <span className="text-xs text-muted">Non-verbal</span>}
           {resident.motionState && (
@@ -54,7 +54,10 @@ export default function ResidentTile({
           )}
         </span>
       </div>
-      <div className={`truncate font-medium text-ink ${lg ? "text-xl" : "text-sm"}`}>{resident.name}</div>
+      <div className={`truncate font-medium text-ink ${lg ? "text-xl" : "text-sm"}`}>
+        {resident.name}
+        {resident.isGuest && <span className="text-muted"> · {resident.room}</span>}
+      </div>
       <PulseLine heartRate={resident.heartRate} color={p ? p.stroke : CALM_STROKE} height={lg ? 64 : 28} />
       <div className="flex items-end justify-between gap-2">
         <span className="flex items-baseline gap-1">
