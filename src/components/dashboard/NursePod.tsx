@@ -37,7 +37,7 @@ export function NursePod({
   const ids = new Set(residents.map((r) => r.id));
   const active = alerts.filter((a) => ids.has(a.residentId)).length;
   return (
-    <section className="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
+    <section className="rounded-xl border border-slate-800 bg-slate-950/60 p-2.5">
       <header className="mb-2 flex items-center gap-2">
         <Avatar name={nurse.name} />
         <span className="font-semibold text-white">{nurse.name}</span>

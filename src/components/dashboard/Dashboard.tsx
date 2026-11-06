@@ -7,6 +7,7 @@ import AlertQueue from "./AlertQueue";
 import Header from "./Header";
 import { NurseBadge, NursePod } from "./NursePod";
 import NightReportModal from "./NightReportModal";
+import NurseBar from "./NurseBar";
 import QrModal from "./QrModal";
 import ResetModal from "./ResetModal";
 import { useAlarmSounds } from "./useAlarmSounds";
@@ -104,7 +105,7 @@ export default function Dashboard({ logoSrc }: { logoSrc: string | null }) {
 
       <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_460px] gap-3 p-3">
         {/* Nurse pods */}
-        <div className="flex min-h-0 flex-col gap-3 overflow-y-auto pr-1">
+        <div className="flex min-h-0 flex-col gap-2 overflow-y-auto pr-1">
           {badgeNurses.length > 0 && (
             <div className="flex flex-wrap gap-2">
               {badgeNurses.map((n) => (
@@ -133,6 +134,8 @@ export default function Dashboard({ logoSrc }: { logoSrc: string | null }) {
           onSelectResident={setSelectedId}
         />
       </div>
+
+      <NurseBar nurses={nurses} alerts={alerts} />
 
       {modal === "report" && <NightReportModal onClose={closeModal} />}
       {modal === "qr" && <QrModal onClose={closeModal} />}
