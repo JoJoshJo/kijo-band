@@ -103,11 +103,11 @@ export function AutopilotPill({ status }: { status: string | null }) {
   return (
     <div
       role="status"
-      className="fixed bottom-16 left-1/2 z-40 flex -translate-x-1/2 items-center gap-2 rounded-full border border-teal-500/60 bg-slate-900/95 px-4 py-1.5 text-sm text-slate-200 shadow-lg"
+      className="fixed bottom-16 left-1/2 z-40 flex -translate-x-1/2 items-center gap-2 rounded-full border border-line-2 bg-surface px-4 py-2 text-sm text-ink shadow-lg"
     >
-      <span className="h-2 w-2 animate-pulse rounded-full bg-teal-400" aria-hidden />
-      <span className="font-semibold text-teal-300">Autopilot</span>
-      <span className="text-slate-400">· {status} · Esc to stop</span>
+      <span className="h-2 w-2 animate-pulse rounded-full bg-ink" aria-hidden />
+      <span className="font-semibold text-ink">Autopilot</span>
+      <span className="text-muted">· {status} · Esc to stop</span>
     </div>
   );
 }

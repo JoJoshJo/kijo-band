@@ -1,5 +1,6 @@
 "use client";
 
+import { X } from "@phosphor-icons/react";
 import { useEffect } from "react";
 
 export default function Modal({
@@ -20,17 +21,22 @@ export default function Modal({
   }, [onClose]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center" role="dialog" aria-modal="true" aria-label={title}>
-      <button type="button" aria-label="Close" onClick={onClose} className="absolute inset-0 bg-black/70" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label={title}>
+      <button type="button" aria-label="Close" tabIndex={-1} onClick={onClose} className="absolute inset-0 bg-black/70" />
       <div
-        className={`relative w-full rounded-2xl border border-slate-700 bg-surface p-6 shadow-2xl ${
+        className={`kijo-modal-enter relative max-h-[calc(100dvh-2rem)] w-full overflow-y-auto rounded-card border border-line-2 bg-surface p-6 shadow-2xl ${
           wide ? "max-w-2xl" : "max-w-md"
         }`}
       >
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-white">{title}</h2>
-          <button type="button" onClick={onClose} className="text-2xl leading-none text-slate-400 hover:text-white" aria-label="Close">
-            ×
+        <div className="mb-4 flex items-center justify-between gap-4">
+          <h2 className="text-xl font-semibold text-ink">{title}</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="flex h-9 w-9 items-center justify-center rounded-btn text-muted transition-colors hover:bg-surface-2 hover:text-ink"
+          >
+            <X size={20} aria-hidden />
           </button>
         </div>
         {children}

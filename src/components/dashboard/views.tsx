@@ -24,39 +24,37 @@ export function isTypingTarget(target: EventTarget | null): boolean {
   return !!t && (t.isContentEditable || ["INPUT", "SELECT", "TEXTAREA"].includes(t.tagName));
 }
 
-/** Header segmented control: Nurse view | Patient view, plus a small Charge view link. */
+/** Header segmented control: Nurse view | Patient view | Charge view. Neutral: teal is for primary buttons only. */
 export function ViewToggle({ current }: { current: View }) {
   const [nurseId] = useCurrentNurse();
-  const item = (view: "nurse" | "patient", href: string, label: string) => {
-    const active = view === current;
-    return (
-      <Link
-        href={href}
-        aria-current={active ? "page" : undefined}
-        className={`px-3 py-1 text-sm font-semibold transition ${
-          active ? "bg-teal-500 text-slate-950" : "text-slate-300 hover:bg-slate-800"
-        }`}
-      >
-        {label}
-      </Link>
-    );
-  };
+  const items: [View, string, string][] = [
+    ["nurse", nurseHref(nurseId), "Nurse"],
+    ["patient", "/patient", "Patient"],
+    ["charge", "/dashboard", "Charge"],
+  ];
   return (
-    <span className="flex items-center gap-3">
-      <nav aria-label="Switch view" className="flex overflow-hidden rounded-md border border-teal-600" title="Press V to switch">
-        {item("nurse", nurseHref(nurseId), "Nurse view")}
-        {item("patient", "/patient", "Patient view")}
-      </nav>
-      <Link
-        href="/dashboard"
-        aria-current={current === "charge" ? "page" : undefined}
-        className={`text-xs underline-offset-4 hover:underline ${
-          current === "charge" ? "font-semibold text-teal-300" : "text-slate-400"
-        }`}
-      >
-        Charge view
-      </Link>
-    </span>
+    <nav
+      aria-label="Switch view"
+      title="Press V to switch Nurse ⇄ Patient"
+      className="flex h-9 items-center rounded-btn border border-line-2 bg-surface p-0.5"
+    >
+      {items.map(([view, href, label]) => {
+        const active = view === current;
+        return (
+          <Link
+            key={view}
+            href={href}
+            aria-current={active ? "page" : undefined}
+            className={`flex h-full items-center rounded-[8px] px-3 text-sm font-medium transition-colors ${
+              active ? "bg-surface-2 text-ink shadow-[inset_0_0_0_1px_var(--kj-line-2)]" : "text-muted hover:text-ink"
+            }`}
+          >
+            {label}
+            <span className="sr-only"> view</span>
+          </Link>
+        );
+      })}
+    </nav>
   );
 }
 

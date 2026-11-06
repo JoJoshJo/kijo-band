@@ -1,7 +1,6 @@
 "use client";
 
-import { CheckCircle, Heartbeat } from "@phosphor-icons/react";
-
+import { ArrowUpRight, Check, CheckCircle, Heartbeat, UserCircle } from "@phosphor-icons/react";
 import { useState } from "react";
 import { RESIDENT_OK_SUFFIX, residentSaysOk } from "@/lib/detection/alertRules";
 import type { Alert, Nurse, Resident } from "@/lib/types";
@@ -16,6 +15,10 @@ import {
   nurseShort,
   patchAlert,
 } from "./util";
+
+// Buttons: 48px tall on touch screens, 36px at lg.
+const BTN = "inline-flex h-12 items-center justify-center gap-2 rounded-btn px-4 text-base font-semibold transition-colors disabled:opacity-50 lg:h-9 lg:px-3 lg:text-sm";
+const SECONDARY = `${BTN} border border-line-2 text-ink hover:bg-surface`;
 
 export default function AlertCard({
   alert,
@@ -48,6 +51,8 @@ export default function AlertCard({
   const assistOptions = nurses.filter((n) => n.id !== alert.assignedNurseId && !assisting.includes(n.id));
   const age = now - alert.createdAt;
   const remaining = isOpen ? ESCALATION_MS - age : null;
+  const saysOk = alert.priority === 1 && residentSaysOk(alert.summary);
+  const summary = saysOk ? alert.summary.slice(0, -RESIDENT_OK_SUFFIX.length) : alert.summary;
 
   async function run(action: string, nurseId?: string) {
     setBusy(action);
@@ -64,71 +69,75 @@ export default function AlertCard({
 
   return (
     <article
-      className={`kijo-card-enter relative shrink-0 overflow-hidden rounded-lg bg-slate-900/90 p-3 pl-4 ${
-        escalatedTo ? `border-2 border-red-500 ${isOpen ? "kijo-border-flash" : ""}` : "border border-slate-700"
+      className={`kijo-card-enter relative shrink-0 overflow-hidden rounded-card bg-surface-2 p-4 pl-5 ${
+        escalatedTo ? `border-2 border-alarm ${isOpen ? "kijo-border-flash" : ""}` : "border border-line-2"
       }`}
     >
-      <span className={`absolute inset-y-0 left-0 w-1.5 ${p.bg} ${isOpen ? p.flash : ""}`} />
+      <span aria-hidden className={`absolute inset-y-0 left-0 w-1 ${p.bg} ${isOpen ? p.flash : ""}`} />
 
       <div className="flex items-start gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <span className={`rounded px-1.5 py-0.5 text-xs font-bold text-slate-950 ${p.bg} ${isOpen ? p.flash : ""}`}>
-              {p.label}
-            </span>
-            <span className="text-sm text-slate-300">
-              <TypeIcon size={18} weight="bold" aria-hidden className="inline align-[-3px]" /> {ALERT_LABEL[alert.type]}
+            <span className={`rounded-full px-2 py-0.5 text-xs font-semibold text-bg ${p.bg}`}>{p.label}</span>
+            <span className="inline-flex items-center gap-1.5 text-sm font-medium text-ink">
+              <TypeIcon size={18} weight="bold" aria-hidden />
+              {ALERT_LABEL[alert.type]}
             </span>
             {escalatedTo && (
-              <span className="rounded bg-red-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
-                ESCALATED → {nurseShort(escalatedTo)}
+              <span className="inline-flex items-center gap-1 rounded-full border border-alarm px-2 py-0.5 text-xs font-semibold text-ink">
+                <ArrowUpRight size={12} weight="bold" className="text-alarm" aria-hidden />
+                Escalated to {nurseShort(escalatedTo)}
               </span>
             )}
             {!isOpen && (
-              <span className="rounded bg-teal-500/20 px-1.5 py-0.5 text-[10px] font-bold text-teal-300">
-                ACKNOWLEDGED
+              <span className="inline-flex items-center gap-1 rounded-full border border-line-2 bg-surface px-2 py-0.5 text-xs font-medium text-ink">
+                <Check size={12} weight="bold" aria-hidden />
+                On it
               </span>
             )}
           </div>
           <button
             type="button"
             onClick={() => resident && onSelectResident(resident.id)}
-            className="mt-1 text-left font-semibold text-white hover:underline"
+            className="mt-2 rounded text-left text-base font-semibold text-ink hover:underline"
           >
             Room {resident?.room ?? "?"} · {resident?.name ?? "Unknown resident"}
           </button>
         </div>
         <div className="flex flex-col items-end gap-1">
           <CountdownRing remainingMs={remaining} totalMs={ESCALATION_MS} color={p.stroke} />
-          <span className="font-mono text-[11px] text-slate-400">{formatDuration(age)} ago</span>
+          <span className="num text-xs text-muted">{formatDuration(age)} ago</span>
         </div>
       </div>
 
-      {alert.priority === 1 && residentSaysOk(alert.summary) ? (
-        <>
-          <span className="mt-1.5 inline-flex items-center gap-1.5 rounded border border-emerald-500/60 bg-emerald-500/15 px-2 py-0.5 text-xs font-semibold text-emerald-300">
-            <CheckCircle size={16} weight="bold" aria-hidden /> Resident says OK — still check
-          </span>
-          <p className="mt-1 text-sm text-slate-200">{alert.summary.slice(0, -RESIDENT_OK_SUFFIX.length)}</p>
-        </>
-      ) : (
-        <p className="mt-1.5 text-sm text-slate-200">{alert.summary}</p>
+      {saysOk && (
+        <span className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-ok/50 bg-ok/10 px-2 py-0.5 text-xs font-medium text-ink">
+          <CheckCircle size={14} weight="bold" className="text-ok" aria-hidden />
+          Resident says OK — still check
+        </span>
       )}
-      {alert.transcript && <p className="mt-1 text-sm italic text-slate-400">“{alert.transcript}”</p>}
+      <p className="mt-2 text-sm text-ink/90">{summary}</p>
+      {alert.transcript && <p className="mt-1 text-sm italic text-muted">“{alert.transcript}”</p>}
 
-      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400">
-        {alert.heartRate != null && <span className="inline-flex items-center gap-1"><Heartbeat size={16} aria-hidden /> {alert.heartRate} bpm</span>}
-        <span>
-          → <span className="text-slate-200">{assigned?.name ?? "Unassigned"}</span>
+      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted">
+        {alert.heartRate != null && (
+          <span className="inline-flex items-center gap-1">
+            <Heartbeat size={14} aria-hidden />
+            <span className="num text-ink">{alert.heartRate}</span> bpm
+          </span>
+        )}
+        <span className="inline-flex items-center gap-1">
+          <UserCircle size={14} aria-hidden />
+          <span className="text-ink">{assigned?.name ?? "Unassigned"}</span>
         </span>
         {assisting.length > 0 && (
           <span className="flex items-center gap-1">
-            assisting:
+            Assisting
             {assisting.map((id) => (
               <span
                 key={id}
                 title={nurseById.get(id)?.name}
-                className="rounded-full bg-teal-500/20 px-1.5 py-0.5 text-[10px] font-bold text-teal-300"
+                className="rounded-full border border-line-2 px-1.5 text-xs font-medium text-ink"
               >
                 {initials(nurseById.get(id)?.name ?? id)}
               </span>
@@ -137,31 +146,26 @@ export default function AlertCard({
         )}
       </div>
 
-      <div className="mt-2.5 flex flex-wrap items-center gap-2">
+      <div className="mt-3 flex flex-wrap items-center gap-2">
         {isOpen && (
           <button
             type="button"
             disabled={busy !== null}
             onClick={() => run("acknowledge", actingNurseId)}
-            className="min-h-12 rounded bg-teal-600 px-5 text-base font-semibold text-white hover:bg-teal-500 disabled:opacity-50 lg:min-h-0 lg:px-3 lg:py-1 lg:text-sm"
+            className={`${BTN} bg-brand text-bg hover:bg-brand/85`}
           >
-            {busy === "acknowledge" ? "…" : "Acknowledge"}
+            {busy === "acknowledge" ? "…" : "I'm on it"}
           </button>
         )}
-        <button
-          type="button"
-          disabled={busy !== null}
-          onClick={() => run("resolve")}
-          className="min-h-12 rounded bg-slate-700 px-5 text-base font-semibold text-white hover:bg-slate-600 disabled:opacity-50 lg:min-h-0 lg:px-3 lg:py-1 lg:text-sm"
-        >
+        <button type="button" disabled={busy !== null} onClick={() => run("resolve")} className={SECONDARY}>
           {busy === "resolve" ? "…" : "Resolve"}
         </button>
         {alert.priority === 1 && assistOptions.length > 0 && (
-          <span className="flex items-center gap-1">
+          <span className="flex items-center gap-2">
             <select
               value={assistId}
               onChange={(e) => setAssistId(e.target.value)}
-              className="min-h-12 rounded border border-slate-700 bg-slate-950 px-1.5 text-sm text-slate-200 lg:min-h-0 lg:py-1"
+              className="h-12 rounded-btn border border-line-2 bg-surface px-2 text-sm text-ink lg:h-9"
               aria-label="Nurse to assist"
             >
               <option value="">Nurse…</option>
@@ -178,13 +182,13 @@ export default function AlertCard({
                 await run("assist", assistId);
                 setAssistId("");
               }}
-              className="min-h-12 rounded border border-teal-600 px-4 text-sm font-semibold text-teal-300 hover:bg-teal-600/20 disabled:opacity-40 lg:min-h-0 lg:px-3 lg:py-1"
+              className={SECONDARY}
             >
               {busy === "assist" ? "…" : "Assist"}
             </button>
           </span>
         )}
-        {error && <span className="text-xs text-orange-300">{error}</span>}
+        {error && <span className="text-xs text-ink">{error}</span>}
       </div>
     </article>
   );

@@ -1,13 +1,13 @@
 "use client";
 
-import { Warning } from "@phosphor-icons/react";
-
+import { CheckCircle, Warning } from "@phosphor-icons/react";
 import type { Alert, MotionState, Resident } from "@/lib/types";
 import PulseLine from "./PulseLine";
-import { ALERT_LABEL, OK_STROKE, PRIORITY } from "./util";
+import { ALERT_ICON, ALERT_LABEL, CALM_STROKE, PRIORITY } from "./util";
 
 const MOTION_LABEL: Record<MotionState, string> = { moving: "Moving", still: "Still", lying: "Lying" };
 
+/** Calm by default: quiet surface + thin border. Only a tile with an active alarm gets color. */
 export default function ResidentTile({
   resident,
   heartRate,
@@ -22,69 +22,67 @@ export default function ResidentTile({
   onSelect: (id: string) => void;
 }) {
   const p = alert ? PRIORITY[alert.priority] : null;
-  // Acknowledged alarms stay colored but stop flashing.
-  const flash = alert && alert.status === "open" ? p?.flash : "";
+  const open = alert?.status === "open";
   // Out-of-range HR (same thresholds as the band's vitals rule) — judged on the stored value, not the drift.
   const hrWarning = resident.heartRate > 130 || resident.heartRate < 45;
   const lg = size === "lg";
+  const TypeIcon = alert ? ALERT_ICON[alert.type] : null;
 
   return (
     <button
       type="button"
       onClick={() => onSelect(resident.id)}
       aria-label={`Room ${resident.room}, ${resident.name}, ${heartRate} bpm${hrWarning ? " (HR warning)" : ""}${
-        alert ? `, ${PRIORITY[alert.priority].label} ${ALERT_LABEL[alert.type]}` : ", OK"
+        alert ? `, ${p!.label} ${ALERT_LABEL[alert.type]}${open ? "" : " acknowledged"}` : ", OK"
       }${resident.motionState ? `, ${MOTION_LABEL[resident.motionState]}` : ""} — open quick info`}
-      className={`relative rounded-lg border-2 bg-slate-900/80 text-left ${lg ? "p-4" : "p-2.5"} transition hover:bg-slate-800/80 ${
-        p ? p.border : "border-emerald-500/30"
-      } ${flash}`}
+      className={`relative flex flex-col gap-1 rounded-card border text-left transition-colors ${lg ? "p-4" : "p-3"} ${
+        p ? `${p.border} ${p.tint}` : "border-line-2 bg-surface-2 hover:border-muted/50"
+      }`}
     >
-      <div className="flex items-baseline justify-between">
-        <span className={`font-semibold tracking-wide text-slate-400 ${lg ? "text-sm" : "text-[11px]"}`}>
-          ROOM {resident.room}
-        </span>
-        <span className="flex items-center gap-1.5">
-          {!resident.canSpeak && (
-            <span className={`text-slate-500 ${lg ? "text-xs" : "text-[10px]"}`}>non-verbal</span>
-          )}
+      {/* Alarm flash on the outline only (IEC rate), so the text stays readable. Acknowledged = steady. */}
+      {p && open && p.flash && (
+        <span aria-hidden className={`pointer-events-none absolute -inset-px rounded-card border-2 ${p.border} ${p.flash}`} />
+      )}
+      <div className="flex items-center justify-between gap-2">
+        <span className="label-caps">Room {resident.room}</span>
+        <span className="flex items-center gap-1">
+          {!resident.canSpeak && <span className="text-xs text-muted">Non-verbal</span>}
           {resident.motionState && (
-            // Neutral chip: red/yellow are reserved for alarms, green for OK.
-            <span
-              title="Motion from the band"
-              className={`rounded border border-slate-600 bg-slate-800/80 font-medium text-slate-300 ${
-                lg ? "px-1.5 py-0.5 text-xs" : "px-1 text-[10px]"
-              }`}
-            >
+            <span title="Motion from the band" className="rounded-full border border-line-2 px-2 text-xs text-muted">
               {MOTION_LABEL[resident.motionState]}
             </span>
           )}
         </span>
       </div>
-      <div className={`truncate font-medium text-slate-100 ${lg ? "text-xl sm:text-2xl" : "text-sm"}`}>{resident.name}</div>
-      <PulseLine heartRate={resident.heartRate} color={p ? p.stroke : OK_STROKE} height={lg ? 72 : 32} />
-      <div className="flex items-center justify-between">
-        <span
-          className={`font-mono leading-none ${lg ? "text-3xl sm:text-4xl" : "text-lg"} ${
-            hrWarning ? "text-yellow-300" : p ? p.text : "text-emerald-400"
-          }`}
-        >
-          {heartRate}
-          <span className="ml-0.5 text-[10px] text-slate-500">bpm</span>
+      <div className={`truncate font-medium text-ink ${lg ? "text-xl" : "text-sm"}`}>{resident.name}</div>
+      <PulseLine heartRate={resident.heartRate} color={p ? p.stroke : CALM_STROKE} height={lg ? 64 : 28} />
+      <div className="flex items-end justify-between gap-2">
+        <span className="flex items-baseline gap-1">
+          <span className={`num leading-none ${lg ? "text-display" : "text-xl"} ${hrWarning ? "text-warn" : "text-ink"}`}>
+            {heartRate}
+          </span>
+          <span className="text-xs text-muted">bpm</span>
           {hrWarning && (
-            <span className="ml-1 rounded border border-yellow-300 px-1 align-middle text-[9px] font-bold text-yellow-300">
-              <Warning size={10} weight="bold" aria-hidden className="mr-0.5 inline align-[-1px]" />HR
+            <span className="ml-1 inline-flex items-center gap-0.5 self-center rounded-full border border-warn px-1.5 text-xs font-medium text-warn">
+              <Warning size={12} weight="bold" aria-hidden />
+              HR
             </span>
           )}
         </span>
-        {alert && p ? (
+        {alert && p && TypeIcon ? (
           <span
-            className={`rounded px-1.5 py-0.5 font-bold text-slate-950 ${p.bg} ${lg ? "text-sm" : "text-[10px]"}`}
+            className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-semibold text-bg ${p.bg} ${lg ? "text-sm" : "text-xs"}`}
           >
-            {p.label} · {ALERT_LABEL[alert.type]}
-            {alert.status === "acknowledged" ? " · ACK" : ""}
+            <TypeIcon size={lg ? 16 : 14} weight="bold" aria-hidden />
+            {p.label}
+            <span className={lg ? "" : "hidden sm:inline"}>· {ALERT_LABEL[alert.type]}</span>
+            {!open && <span className="font-medium">· Ack</span>}
           </span>
         ) : (
-          <span className="rounded px-1.5 py-0.5 text-[10px] font-semibold text-emerald-400/80">OK</span>
+          <span className="inline-flex items-center gap-1 text-xs font-medium text-muted">
+            <CheckCircle size={16} weight="bold" className="text-ok" aria-hidden />
+            OK
+          </span>
         )}
       </div>
     </button>

@@ -1,5 +1,7 @@
 "use client";
 
+import { ArrowRight, X } from "@phosphor-icons/react";
+
 import Link from "next/link";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import useSWR from "swr";
@@ -66,27 +68,27 @@ export default function PatientView({ logoSrc }: { logoSrc: string | null }) {
   }, [toast]);
 
   return (
-    <div className="flex h-screen flex-col bg-bg text-slate-100">
+    <div className="flex h-screen flex-col bg-bg text-ink">
       <Header
         logoSrc={logoSrc}
         view="patient"
         info={
-          <span className="text-sm text-slate-400">
-            Open alerts: <span className="font-mono text-white">{alerts.filter((a) => a.status === "open").length}</span>
+          <span className="text-sm text-muted">
+            Open alerts <span className="num text-ink">{alerts.filter((a) => a.status === "open").length}</span>
           </span>
         }
         live={error ? "offline" : data ? "live" : "connecting"}
       />
 
-      <div className="flex items-center justify-center gap-3 border-b border-slate-800 px-5 py-2">
-        <label htmlFor="patient-resident" className="text-xs font-semibold tracking-widest text-slate-400">
-          RESIDENT
+      <div className="flex items-center justify-center gap-3 border-b border-line px-5 py-2">
+        <label htmlFor="patient-resident" className="label-caps">
+          Resident
         </label>
         <select
           id="patient-resident"
           value={residentId}
           onChange={(e) => setPicked(e.target.value)}
-          className="w-80 rounded border border-slate-700 bg-slate-950 px-2 py-1.5 text-sm text-slate-200"
+          className="h-9 w-full max-w-80 rounded-btn border border-line-2 bg-surface-2 px-2 text-sm text-ink"
         >
           {WINGS.map((w) => {
             const list = residents.filter((r) => r.wing === w);
@@ -102,37 +104,37 @@ export default function PatientView({ logoSrc }: { logoSrc: string | null }) {
             );
           })}
         </select>
-        {resident && <span className="text-xs text-slate-500">{resident.language.toUpperCase()}</span>}
+        {resident && <span className="text-xs text-muted">{resident.language.toUpperCase()}</span>}
       </div>
 
-      <main className="flex min-h-0 flex-1 justify-center bg-black/30">
+      <main className="flex min-h-0 flex-1 justify-center bg-bg">
         {residentId && <BandFrame residentId={residentId} title={`Kijo Band — ${resident?.name ?? residentId}`} />}
       </main>
 
       {toast && (
         <div
           role="status"
-          className="kijo-toast fixed right-6 top-28 z-50 flex items-center gap-4 rounded-xl border border-teal-500/60 bg-slate-900/95 px-5 py-3 shadow-2xl"
+          className="kijo-toast fixed right-6 top-28 z-50 flex items-center gap-4 rounded-card border border-line-2 bg-surface px-4 py-3 shadow-2xl"
         >
-          <span className={`rounded px-1.5 py-0.5 text-xs font-bold text-slate-950 ${PRIORITY[toast.priority].bg}`}>
+          <span className={`rounded-full px-2 py-0.5 text-xs font-semibold text-bg ${PRIORITY[toast.priority].bg}`}>
             {PRIORITY[toast.priority].label}
           </span>
-          <span className="text-sm text-slate-200">
+          <span className="text-sm text-ink">
             Alert sent · {ALERT_LABEL[toast.type]}
           </span>
           <Link
             href={nurseHref(toast.assignedNurseId)}
-            className="rounded bg-teal-500 px-3 py-1.5 text-sm font-semibold text-slate-950 hover:bg-teal-400"
+            className="inline-flex h-9 items-center gap-1.5 rounded-btn bg-brand px-3 text-sm font-semibold text-bg hover:bg-brand/85"
           >
-            View in Nurse view →
+            View in Nurse view <ArrowRight size={16} weight="bold" aria-hidden />
           </Link>
           <button
             type="button"
             onClick={() => setToast(null)}
             aria-label="Dismiss"
-            className="text-lg leading-none text-slate-500 hover:text-white"
+            className="flex h-9 w-9 items-center justify-center rounded-btn text-muted hover:bg-surface-2 hover:text-ink"
           >
-            ×
+            <X size={18} aria-hidden />
           </button>
         </div>
       )}
@@ -159,7 +161,7 @@ function BandFrame({ residentId, title }: { residentId: string; title: string })
       ref={ref}
       title={title}
       allow="microphone; accelerometer; gyroscope; screen-wake-lock"
-      className="h-full w-[430px] border-x border-slate-800 bg-black"
+      className="h-full w-[430px] border-x border-line bg-black"
     />
   );
 }

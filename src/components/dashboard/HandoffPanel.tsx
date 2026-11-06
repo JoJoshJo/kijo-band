@@ -20,10 +20,10 @@ function roomCounts(rooms: string[]): string {
 }
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
-  return <h3 className="mb-2 text-[11px] font-semibold tracking-widest text-slate-500">{children}</h3>;
+  return <h3 className="mb-2 text-xs font-semibold tracking-widest text-muted">{children}</h3>;
 }
 
-/** "Generate shift handoff" → POST /api/report/handoff. Neutral slate: red/yellow stay reserved for alarms. */
+/** "Generate shift handoff" → POST /api/report/handoff. Neutral: red/yellow stay reserved for alarms. */
 export default function HandoffPanel() {
   const [state, setState] = useState<
     { kind: "idle" } | { kind: "loading" } | { kind: "error"; message: string } | { kind: "done"; handoff: Handoff }
@@ -60,17 +60,17 @@ export default function HandoffPanel() {
   const loading = state.kind === "loading";
 
   return (
-    <section aria-label="Shift handoff" className="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
+    <section aria-label="Shift handoff" className="rounded-card border border-line bg-surface-2 p-4">
       <div className="flex flex-wrap items-center gap-3">
         <div className="mr-auto">
-          <h2 className="text-sm font-semibold text-white">Shift handoff</h2>
-          <p className="text-xs text-slate-400">A morning briefing drafted from tonight&apos;s alerts.</p>
+          <h2 className="text-sm font-semibold text-ink">Shift handoff</h2>
+          <p className="text-xs text-muted">A morning briefing drafted from tonight&apos;s alerts.</p>
         </div>
         {state.kind === "done" && (
           <button
             type="button"
             onClick={() => copy(state.handoff.text)}
-            className="min-h-10 rounded-lg border border-slate-600 px-3 text-sm text-slate-200 hover:bg-slate-800"
+            className="min-h-10 rounded-lg border border-line-2 px-3 text-sm text-ink hover:bg-surface-2"
           >
             <span className="inline-flex items-center gap-1.5">{copied ? <Check size={16} weight="bold" aria-hidden /> : <Copy size={16} aria-hidden />}{copied ? "Copied" : "Copy"}</span>
           </button>
@@ -79,15 +79,15 @@ export default function HandoffPanel() {
           type="button"
           onClick={generate}
           disabled={loading}
-          className="min-h-10 rounded-lg bg-white px-4 text-sm font-semibold text-slate-900 hover:bg-slate-200 disabled:opacity-60"
+          className="inline-flex h-10 items-center rounded-btn bg-brand px-4 text-sm font-semibold text-bg hover:bg-brand/85 disabled:opacity-60"
         >
           {loading ? "Writing…" : state.kind === "done" ? "Regenerate" : "Generate shift handoff"}
         </button>
       </div>
 
       <div aria-live="polite" className="mt-3 empty:mt-0">
-        {loading && <p className="text-sm text-slate-400">Reading tonight&apos;s alerts and drafting the handoff…</p>}
-        {state.kind === "error" && <p className="text-sm text-orange-300">{state.message}</p>}
+        {loading && <p className="text-sm text-muted">Reading tonight&apos;s alerts and drafting the handoff…</p>}
+        {state.kind === "error" && <p className="text-sm text-ink">{state.message}</p>}
       </div>
 
       {state.kind === "done" && <HandoffBody handoff={state.handoff} />}
@@ -98,8 +98,8 @@ export default function HandoffPanel() {
 function HandoffBody({ handoff: h }: { handoff: Handoff }) {
   return (
     <div className="mt-1 flex flex-col gap-4">
-      <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
-        <span className="rounded-full border border-slate-600 bg-slate-800 px-2 py-0.5 font-medium text-slate-200">
+      <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
+        <span className="rounded-full border border-line-2 bg-surface-2 px-2 py-0.5 font-medium text-ink">
           {h.source === "claude" ? <span className="inline-flex items-center gap-1"><Sparkle size={14} weight="bold" aria-hidden /> Drafted by Claude</span> : "Rule-based (AI unavailable)"}
         </span>
         <span>
@@ -111,14 +111,14 @@ function HandoffBody({ handoff: h }: { handoff: Handoff }) {
       <div>
         <SectionTitle>NEEDS ATTENTION THIS MORNING</SectionTitle>
         {h.needsAttention.length === 0 ? (
-          <p className="text-sm text-slate-300">Nobody flagged — quiet night.</p>
+          <p className="text-sm text-ink">Nobody flagged — quiet night.</p>
         ) : (
           <ul className="flex flex-col gap-1.5">
             {h.needsAttention.map((a) => (
-              <li key={a.room} className="flex gap-3 rounded-lg bg-slate-900 px-3 py-2 text-sm">
-                <span className="shrink-0 font-mono font-semibold text-white">Rm {a.room}</span>
-                <span className="text-slate-300">
-                  <span className="font-medium text-slate-100">{a.name}</span> — {a.reason}
+              <li key={a.room} className="flex gap-3 rounded-lg bg-surface px-3 py-2 text-sm">
+                <span className="shrink-0 font-mono font-semibold text-ink">Rm {a.room}</span>
+                <span className="text-ink">
+                  <span className="font-medium text-ink">{a.name}</span> — {a.reason}
                 </span>
               </li>
             ))}
@@ -130,7 +130,7 @@ function HandoffBody({ handoff: h }: { handoff: Handoff }) {
         <SectionTitle>BY NURSE</SectionTitle>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
-            <thead className="text-xs text-slate-500">
+            <thead className="text-xs text-muted">
               <tr>
                 <th scope="col" className="py-1 pr-3 font-medium">Nurse</th>
                 <th scope="col" className="py-1 pr-3 font-medium">Handled</th>
@@ -140,16 +140,16 @@ function HandoffBody({ handoff: h }: { handoff: Handoff }) {
             </thead>
             <tbody>
               {h.nurses.map((n) => (
-                <tr key={n.nurseId} className="border-t border-slate-800 align-top">
-                  <th scope="row" className="py-1.5 pr-3 font-medium text-slate-100">
-                    {n.name} <span className="text-xs font-normal text-slate-500">{n.role}</span>
-                    {n.note && <div className="text-xs font-normal text-slate-400">{n.note}</div>}
+                <tr key={n.nurseId} className="border-t border-line align-top">
+                  <th scope="row" className="py-1.5 pr-3 font-medium text-ink">
+                    {n.name} <span className="text-xs font-normal text-muted">{n.role}</span>
+                    {n.note && <div className="text-xs font-normal text-muted">{n.note}</div>}
                   </th>
-                  <td className="py-1.5 pr-3 font-mono text-slate-200">
+                  <td className="py-1.5 pr-3 font-mono text-ink">
                     {n.handled}/{n.alerts}
                   </td>
-                  <td className="py-1.5 pr-3 font-mono text-slate-200">{formatAvg(n.avgResponseMs)}</td>
-                  <td className="py-1.5 text-slate-300">
+                  <td className="py-1.5 pr-3 font-mono text-ink">{formatAvg(n.avgResponseMs)}</td>
+                  <td className="py-1.5 text-ink">
                     {n.open.length ? roomCounts(n.open.map((o) => o.room)) : "—"}
                   </td>
                 </tr>
@@ -161,14 +161,14 @@ function HandoffBody({ handoff: h }: { handoff: Handoff }) {
 
       <div>
         <SectionTitle>RECOMMENDATIONS</SectionTitle>
-        <ol className="flex list-decimal flex-col gap-1 pl-5 text-sm text-slate-200 marker:text-slate-500">
+        <ol className="flex list-decimal flex-col gap-1 pl-5 text-sm text-ink marker:text-muted">
           {h.recommendations.map((r, i) => (
             <li key={i}>{r}</li>
           ))}
         </ol>
       </div>
 
-      <p className="text-[11px] text-slate-500">
+      <p className="text-xs text-muted">
         {h.source === "claude"
           ? "AI draft — numbers come from the alert log; verify before acting. Fictional demo data."
           : "Built from simple rules over the alert log. Fictional demo data."}

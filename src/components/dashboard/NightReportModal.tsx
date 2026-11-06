@@ -19,10 +19,10 @@ const PRIORITY_NAME: Record<AlertPriority, string> = { 1: "Critical", 2: "Urgent
 
 function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-950/60 px-4 py-3">
-      <div className="text-[11px] font-semibold tracking-widest text-slate-500">{label}</div>
-      <div className="mt-1 font-mono text-3xl text-white">{value}</div>
-      {sub && <div className="mt-0.5 text-xs leading-snug text-slate-400">{sub}</div>}
+    <div className="rounded-card border border-line bg-surface-2 px-4 py-3">
+      <div className="text-xs font-semibold tracking-widest text-muted">{label}</div>
+      <div className="num mt-1 text-display text-ink">{value}</div>
+      {sub && <div className="mt-0.5 text-xs leading-snug text-muted">{sub}</div>}
     </div>
   );
 }
@@ -36,8 +36,8 @@ function PriorityBars({ byPriority }: { byPriority: NightReport["byPriority"] })
 
   return (
     <figure>
-      <figcaption className="mb-3 text-[11px] font-semibold tracking-widest text-slate-500">ALERTS BY PRIORITY</figcaption>
-      <div className="relative flex items-end gap-6 border-b border-slate-700 px-4" style={{ height: H + 28 }}>
+      <figcaption className="mb-3 text-xs font-semibold tracking-widest text-muted">ALERTS BY PRIORITY</figcaption>
+      <div className="relative flex items-end gap-6 border-b border-line-2 px-4" style={{ height: H + 28 }}>
         {priorities.map((p) => {
           const n = byPriority[p];
           const h = n === 0 ? 0 : Math.max(4, Math.round((n / max) * H));
@@ -48,7 +48,7 @@ function PriorityBars({ byPriority }: { byPriority: NightReport["byPriority"] })
               onMouseEnter={() => setHover(p)}
               onMouseLeave={() => setHover(null)}
             >
-              <span className="mb-1 font-mono text-sm text-slate-200">{n}</span>
+              <span className="mb-1 font-mono text-sm text-ink">{n}</span>
               <div
                 className={`w-full max-w-24 rounded-t ${PRIORITY[p].bg} transition-opacity ${
                   hover != null && hover !== p ? "opacity-50" : ""
@@ -56,7 +56,7 @@ function PriorityBars({ byPriority }: { byPriority: NightReport["byPriority"] })
                 style={{ height: h }}
               />
               {hover === p && (
-                <div className="pointer-events-none absolute -top-2 z-10 -translate-y-full whitespace-nowrap rounded border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200 shadow">
+                <div className="pointer-events-none absolute -top-2 z-10 -translate-y-full whitespace-nowrap rounded border border-line-2 bg-surface px-2 py-1 text-xs text-ink shadow">
                   {PRIORITY[p].label} {PRIORITY_NAME[p]}: <b>{n}</b> alert{n === 1 ? "" : "s"}
                 </div>
               )}
@@ -66,7 +66,7 @@ function PriorityBars({ byPriority }: { byPriority: NightReport["byPriority"] })
       </div>
       <div className="flex gap-6 px-4 pt-1.5">
         {priorities.map((p) => (
-          <div key={p} className="flex-1 text-center text-xs text-slate-300">
+          <div key={p} className="flex-1 text-center text-xs text-ink">
             {PRIORITY[p].label} · {PRIORITY_NAME[p]}
           </div>
         ))}
@@ -97,9 +97,9 @@ export default function NightReportModal({ onClose }: { onClose: () => void }) {
   return (
     <Modal title="Night Report" onClose={onClose} wide>
       {error ? (
-        <p className="text-sm text-orange-300">Could not load the report.</p>
+        <p className="text-sm text-ink">Could not load the report.</p>
       ) : !data ? (
-        <p className="text-sm text-slate-400">Loading…</p>
+        <p className="text-sm text-muted">Loading…</p>
       ) : (
         <div className="flex flex-col gap-5">
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -122,7 +122,7 @@ export default function NightReportModal({ onClose }: { onClose: () => void }) {
           </div>
           <PriorityBars byPriority={data.byPriority} />
           <HandoffPanel />
-          <p className="text-[11px] text-slate-500">All alerts since the last demo reset · fictional demo data</p>
+          <p className="text-xs text-muted">All alerts since the last demo reset · fictional demo data</p>
         </div>
       )}
     </Modal>

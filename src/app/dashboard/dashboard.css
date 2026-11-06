@@ -22,12 +22,12 @@
 @keyframes kijo-border-flash {
   0%,
   49% {
-    border-color: #ef4444;
-    box-shadow: 0 0 18px rgba(239, 68, 68, 0.55);
+    border-color: #e5484d;
+    box-shadow: 0 0 18px rgba(229, 72, 77, 0.5);
   }
   50%,
   100% {
-    border-color: rgba(239, 68, 68, 0.25);
+    border-color: rgba(229, 72, 77, 0.25);
     box-shadow: none;
   }
 }
@@ -115,6 +115,26 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .kijo-pulse {
+    animation: none;
+  }
+}
+
+@keyframes kijo-modal-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.kijo-modal-enter {
+  animation: kijo-modal-enter 0.18s ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .kijo-modal-enter,
+  .kijo-toast {
     animation: none;
   }
 }

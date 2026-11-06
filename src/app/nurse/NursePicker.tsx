@@ -29,10 +29,10 @@ export default function NursePicker({ logoSrc }: { logoSrc: string | null }) {
   const nurses = (data?.nurses ?? []).filter((n) => n.role !== "Charge");
 
   return (
-    <div className="flex h-screen flex-col bg-bg text-slate-100">
+    <div className="flex h-screen flex-col bg-bg text-ink">
       <Header logoSrc={logoSrc} view="nurse" live={error ? "offline" : data ? "live" : "connecting"} />
       <main className="flex flex-1 flex-col items-center justify-center gap-8 p-8">
-        <h1 className="text-4xl font-bold text-white">Who&apos;s on shift?</h1>
+        <h1 className="text-display font-semibold text-ink">Who&apos;s on shift?</h1>
         <div className="flex flex-wrap justify-center gap-5">
           {nurses.map((n) => {
             const count = data!.residents.filter((r) => r.assignedNurseId === n.id).length;
@@ -44,20 +44,20 @@ export default function NursePicker({ logoSrc }: { logoSrc: string | null }) {
                   setRemembered(n.id);
                   router.push(nurseHref(n.id));
                 }}
-                className="flex w-64 flex-col items-center gap-3 rounded-2xl border border-slate-700 bg-slate-900/80 p-8 transition hover:border-teal-500 hover:bg-slate-800"
+                className="flex w-64 flex-col items-center gap-3 rounded-card border border-line bg-surface p-8 transition-colors hover:border-line-2 hover:bg-surface-2"
               >
-                <span className="flex h-20 w-20 items-center justify-center rounded-full bg-teal-500/20 text-3xl font-bold text-teal-300">
+                <span className="flex h-20 w-20 items-center justify-center rounded-full border border-line-2 bg-surface-2 text-2xl font-semibold text-ink">
                   {initials(n.name)}
                 </span>
-                <span className="text-2xl font-semibold text-white">{n.name}</span>
-                <span className="text-sm text-slate-400">
+                <span className="text-xl font-semibold text-ink">{n.name}</span>
+                <span className="text-sm text-muted">
                   {n.role} · {n.wing} · {count} residents
                 </span>
               </button>
             );
           })}
         </div>
-        {!data && !error && <p className="text-sm text-slate-500">Loading…</p>}
+        {!data && !error && <p className="text-sm text-muted">Loading…</p>}
       </main>
     </div>
   );

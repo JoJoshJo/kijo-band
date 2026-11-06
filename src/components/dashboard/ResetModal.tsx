@@ -40,12 +40,12 @@ export default function ResetModal({ onClose, onDone }: { onClose: () => void; o
   return (
     <Modal title="Reset demo?" onClose={onClose}>
       <form onSubmit={reset} className="flex flex-col gap-4">
-        <p className="text-sm text-slate-300">
+        <p className="text-sm text-ink">
           Clears <b>all alerts</b> and <b>guest residents</b>, and resets every resident and nurse status. This
           cannot be undone.
         </p>
         {!stored && (
-          <label className="flex flex-col gap-1 text-sm text-slate-400">
+          <label className="flex flex-col gap-1 text-sm text-muted">
             Admin secret
             <input
               type="password"
@@ -53,19 +53,19 @@ export default function ResetModal({ onClose, onDone }: { onClose: () => void; o
               autoComplete="off"
               value={secret}
               onChange={(e) => setSecret(e.target.value)}
-              className="rounded border border-slate-700 bg-slate-950 px-3 py-2 text-white"
+              className="rounded border border-line-2 bg-surface-2 px-3 py-2 text-ink"
             />
           </label>
         )}
-        {error && <p className="text-sm text-orange-300">{error}</p>}
+        {error && <p className="text-sm text-ink">{error}</p>}
         <div className="flex justify-end gap-2">
-          <button type="button" onClick={onClose} className="rounded px-4 py-2 text-sm text-slate-300 hover:bg-slate-800">
+          <button type="button" onClick={onClose} className="rounded px-4 py-2 text-sm text-ink hover:bg-surface-2">
             Cancel
           </button>
           <button
             type="submit"
             disabled={busy}
-            className="rounded bg-orange-600 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-500 disabled:opacity-50"
+            className="inline-flex h-10 items-center rounded-btn bg-brand px-4 text-sm font-semibold text-bg hover:bg-brand/85 disabled:opacity-50"
           >
             {busy ? "Resetting…" : "Reset demo"}
           </button>

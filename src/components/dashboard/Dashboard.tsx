@@ -5,7 +5,8 @@ import { useCallback, useState } from "react";
 import useSWR from "swr";
 import type { Resident, StateResponse } from "@/lib/types";
 import AlertQueue from "./AlertQueue";
-import Header from "./Header";
+import { ArrowCounterClockwise, ChartBar, QrCode } from "@phosphor-icons/react";
+import Header, { HeaderButton } from "./Header";
 import { NurseBadge, NursePod } from "./NursePod";
 import NightReportModal from "./NightReportModal";
 import NurseBar from "./NurseBar";
@@ -66,54 +67,42 @@ export default function Dashboard({ logoSrc }: { logoSrc: string | null }) {
   const podNurses = nurses.filter((n) => residents.some((r) => r.assignedNurseId === n.id));
   const badgeNurses = nurses.filter((n) => !podNurses.includes(n));
 
+  const openCount = alerts.filter((a) => a.status === "open").length;
+
   return (
-    <div className="flex h-screen flex-col bg-bg text-slate-100">
+    <div className="flex min-h-screen flex-col bg-bg text-ink lg:h-screen">
       <Header
         logoSrc={logoSrc}
         view="charge"
         info={
-          <>
-            <span className="text-sm text-slate-400">
-              Nurses on: <span className="text-white">{nurses.length}</span>
+          <span className="flex items-center gap-4 text-sm text-muted">
+            <span>
+              Nurses on <span className="num text-ink">{nurses.length}</span>
             </span>
-            <span className="text-sm text-slate-400">
-              Open alerts: <span className="font-mono text-white">{alerts.filter((a) => a.status === "open").length}</span>
+            <span>
+              Open alerts <span className="num text-ink">{openCount}</span>
             </span>
-          </>
+          </span>
         }
         live={error ? "offline" : data ? "live" : "connecting"}
         actions={
           <>
             <SoundToggle sound={sound} />
-            <button
-              type="button"
-              onClick={() => setModal("report")}
-              className="rounded border border-slate-600 px-3 py-1 text-sm text-slate-200 hover:bg-slate-800"
-            >
-              Night Report
-            </button>
-            <button
-              type="button"
-              onClick={() => setModal("qr")}
-              className="rounded border border-teal-600 px-3 py-1 text-sm font-semibold text-teal-300 hover:bg-teal-600/20"
-            >
-              QR · Join
-            </button>
-            <button
-              type="button"
+            <HeaderButton icon={<ChartBar size={18} aria-hidden />} label="Night Report" onClick={() => setModal("report")} />
+            <HeaderButton icon={<QrCode size={18} aria-hidden />} label="QR · Join" onClick={() => setModal("qr")} />
+            <HeaderButton
+              icon={<ArrowCounterClockwise size={18} aria-hidden />}
+              label="Reset demo"
               onClick={() => setModal("reset")}
-              className="rounded border border-slate-700 px-3 py-1 text-sm text-slate-300 hover:bg-slate-800"
-            >
-              Reset demo
-            </button>
+            />
           </>
         }
       />
       <ConnectionBanner offline={!!error} lastOkAt={lastOkAt} now={clientNow} />
 
-      <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_460px] gap-3 p-3">
-        {/* Nurse pods */}
-        <div className="flex min-h-0 flex-col gap-2 overflow-y-auto pr-1">
+      {/* Phone/tablet: queue first, pods below, page scrolls. lg+: pods | 460px queue. */}
+      <div className="flex flex-1 flex-col gap-4 p-4 lg:grid lg:min-h-0 lg:grid-cols-[minmax(0,1fr)_460px]">
+        <div className="order-2 flex flex-col gap-2 lg:order-none lg:min-h-0 lg:overflow-y-auto lg:pr-1">
           {badgeNurses.length > 0 && (
             <div className="flex flex-wrap gap-2">
               {badgeNurses.map((n) => (
@@ -133,19 +122,23 @@ export default function Dashboard({ logoSrc }: { logoSrc: string | null }) {
           ))}
         </div>
 
-        <AlertQueue
-          alerts={alerts}
-          residents={residents}
-          nurses={nurses}
-          now={now}
-          onChanged={refresh}
-          onSelectResident={setSelectedId}
-          loading={!data}
-          residentCount={residents.length}
-        />
+        <div className="order-1 flex flex-col lg:order-none lg:min-h-0">
+          <AlertQueue
+            alerts={alerts}
+            residents={residents}
+            nurses={nurses}
+            now={now}
+            onChanged={refresh}
+            onSelectResident={setSelectedId}
+            loading={!data}
+            residentCount={residents.length}
+          />
+        </div>
       </div>
 
-      <NurseBar nurses={nurses} alerts={alerts} />
+      <div className="hidden lg:block">
+        <NurseBar nurses={nurses} alerts={alerts} />
+      </div>
 
       {modal === "report" && <NightReportModal onClose={closeModal} />}
       {modal === "qr" && <QrModal onClose={closeModal} />}

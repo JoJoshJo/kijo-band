@@ -1,5 +1,6 @@
 "use client";
 
+import { WifiSlash } from "@phosphor-icons/react";
 import { formatDuration } from "./util";
 
 /**
@@ -18,14 +19,17 @@ export default function ConnectionBanner({
   if (!offline) return null;
   const age = lastOkAt != null && now != null ? Math.max(0, now - lastOkAt) : null;
   return (
-    <div
-      role="alert"
-      className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-slate-600 bg-slate-800 px-3 py-2 text-sm text-slate-100 sm:px-5"
-    >
-      <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-orange-400" aria-hidden />
+    <div role="alert" className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-line-2 bg-surface-2 px-4 py-2 text-sm text-ink">
+      <WifiSlash size={18} className="text-muted" aria-hidden />
       <span className="font-semibold">Connection lost — retrying…</span>
-      <span className="text-slate-400">
-        {age != null ? `Showing the last known data (${formatDuration(age)} old).` : "No data loaded yet."}
+      <span className="text-muted">
+        {age != null ? (
+          <>
+            Showing the last known data (<span className="num">{formatDuration(age)}</span> old).
+          </>
+        ) : (
+          "No data loaded yet."
+        )}
       </span>
     </div>
   );

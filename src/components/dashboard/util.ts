@@ -20,13 +20,15 @@ import type { Alert, AlertPriority, AlertType, Nurse } from "@/lib/types";
 // Red/yellow are reserved for alarms — don't use them for anything else on the dashboard.
 export const PRIORITY: Record<
   AlertPriority,
-  { label: string; text: string; bg: string; border: string; stroke: string; flash: string }
+  { label: string; text: string; bg: string; border: string; tint: string; stroke: string; flash: string }
 > = {
-  1: { label: "P1", text: "text-alarm", bg: "bg-alarm", border: "border-alarm", stroke: "#e5484d", flash: "kijo-flash-fast" },
-  2: { label: "P2", text: "text-warn", bg: "bg-warn", border: "border-warn", stroke: "#f5b83d", flash: "kijo-flash-slow" },
-  3: { label: "P3", text: "text-info", bg: "bg-info", border: "border-info", stroke: "#4cc3e6", flash: "" },
+  1: { label: "P1", text: "text-alarm", bg: "bg-alarm", border: "border-alarm", tint: "bg-alarm/10", stroke: "#e5484d", flash: "kijo-flash-fast" },
+  2: { label: "P2", text: "text-warn", bg: "bg-warn", border: "border-warn", tint: "bg-warn/10", stroke: "#f5b83d", flash: "kijo-flash-slow" },
+  3: { label: "P3", text: "text-info", bg: "bg-info", border: "border-info/70", tint: "bg-info/5", stroke: "#4cc3e6", flash: "" },
 };
 export const OK_STROKE = "#3dd68c";
+/** Pulse line on a calm (no alarm) tile: neutral, so color only means "alarm". */
+export const CALM_STROKE = "#5d6b7b";
 
 export const ALERT_LABEL: Record<AlertType, string> = {
   fall: "Fall",

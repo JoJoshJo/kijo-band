@@ -1,6 +1,7 @@
 "use client";
 
-import { Check } from "@phosphor-icons/react";
+import { Bed, Check, Siren, UserCircle } from "@phosphor-icons/react";
+import { Avatar } from "./NursePod";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -87,19 +88,25 @@ export default function NurseView({ nurseId, logoSrc }: { nurseId: string; logoS
 
   if (data && (!nurse || nurse.role === "Charge")) {
     return (
-      <div className="flex h-screen flex-col bg-bg text-slate-100">
+      <div className="flex h-screen flex-col bg-bg text-ink">
         <Header logoSrc={logoSrc} view="nurse" live={live} />
-        <main className="flex flex-1 flex-col items-center justify-center gap-4">
-          <p className="text-lg text-slate-300">
-            {nurse ? `${nurse.name} uses the Charge view.` : "Unknown nurse."}
-          </p>
-          <div className="flex gap-3">
+        <main className="flex flex-1 flex-col items-center justify-center gap-4 p-4 text-center">
+          <UserCircle size={40} className="text-muted" aria-hidden />
+          <p className="text-xl text-ink">{nurse ? `${nurse.name} uses the Charge view.` : "Unknown nurse."}</p>
+          <div className="flex gap-2">
             {nurse && (
-              <Link href="/dashboard" className="rounded bg-teal-500 px-4 py-2 font-semibold text-slate-950">
+              <Link
+                href="/dashboard"
+                className="inline-flex h-10 items-center rounded-btn bg-brand px-4 font-semibold text-bg hover:bg-brand/85"
+              >
                 Open Charge view
               </Link>
             )}
-            <button type="button" onClick={switchNurse} className="rounded border border-slate-600 px-4 py-2 text-slate-200">
+            <button
+              type="button"
+              onClick={switchNurse}
+              className="inline-flex h-10 items-center rounded-btn border border-line-2 px-4 text-ink hover:bg-surface-2"
+            >
               Pick a nurse
             </button>
           </div>
@@ -109,7 +116,7 @@ export default function NurseView({ nurseId, logoSrc }: { nurseId: string; logoS
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-bg text-slate-100 lg:h-screen">
+    <div className="flex min-h-screen flex-col bg-bg text-ink lg:h-screen">
       <Header
         logoSrc={logoSrc}
         view="nurse"
@@ -117,13 +124,17 @@ export default function NurseView({ nurseId, logoSrc }: { nurseId: string; logoS
         info={
           nurse && (
             <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
-              <span className="text-lg font-semibold text-white">
-                {nurse.name} <span className="font-normal text-slate-400">· {nurse.role} · {nurse.wing} · {residents.length} residents</span>
+              <span className="flex items-center gap-2">
+                <Avatar name={nurse.name} />
+                <span className="text-base font-semibold text-ink">{nurse.name}</span>
+              </span>
+              <span className="text-sm text-muted">
+                {nurse.role} · {nurse.wing} · <span className="num">{residents.length}</span> residents
               </span>
               <button
                 type="button"
                 onClick={switchNurse}
-                className="text-xs text-slate-400 underline-offset-4 hover:text-white hover:underline"
+                className="rounded text-xs text-muted underline-offset-4 hover:text-ink hover:underline"
               >
                 Switch nurse
               </button>
@@ -142,12 +153,13 @@ export default function NurseView({ nurseId, logoSrc }: { nurseId: string; logoS
       )}
 
       {/* Phone/tablet: queue on top, tiles (2 columns) below, page scrolls. lg+: tiles | 460px queue. */}
-      <div className="flex flex-1 flex-col gap-3 p-3 lg:grid lg:min-h-0 lg:grid-cols-[minmax(0,1fr)_460px]">
-        <div className="order-2 grid auto-rows-min grid-cols-2 gap-3 lg:order-none lg:min-h-0 lg:overflow-y-auto lg:pr-1 xl:grid-cols-4">
+      <div className="flex flex-1 flex-col gap-4 p-4 lg:grid lg:min-h-0 lg:grid-cols-[minmax(0,1fr)_460px]">
+        <div className="order-2 grid auto-rows-min grid-cols-2 gap-2 lg:order-none lg:min-h-0 lg:overflow-y-auto lg:pr-1 xl:grid-cols-4">
           {data && nurse && residents.length === 0 && (
-            <div className="col-span-full flex flex-col items-center gap-2 rounded-xl border border-dashed border-slate-700 px-6 py-12 text-center">
-              <p className="text-lg font-semibold text-slate-200">No residents assigned to {nurse.name} tonight</p>
-              <p className="text-sm text-slate-400">
+            <div className="col-span-full flex flex-col items-center gap-2 rounded-card border border-dashed border-line-2 px-6 py-12 text-center">
+              <Bed size={40} className="text-muted" aria-hidden />
+              <p className="text-xl font-semibold text-ink">No residents assigned to {nurse.name} tonight</p>
+              <p className="text-sm text-muted">
                 Residents appear here as soon as they are assigned. Team emergencies still show above.
               </p>
             </div>
@@ -193,7 +205,7 @@ export default function NurseView({ nurseId, logoSrc }: { nurseId: string; logoS
   );
 }
 
-/** Thin red strip(s): another nurse's resident has an OPEN P1. Only cross-nurse info shown here. */
+/** Alarm strip(s): another nurse's resident has an OPEN P1. Only cross-nurse info shown here. */
 function TeamEmergencies({
   nurse,
   alerts,
@@ -219,15 +231,20 @@ function TeamEmergencies({
         const r = byId.get(a.residentId);
         const assisting = (a.assistingNurseIds ?? []).includes(nurse.id);
         return (
-          <div key={a.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-red-900 bg-red-600 px-3 py-1.5 text-sm text-white sm:px-5 lg:bg-red-600/90">
-            <span className="kijo-flash-fast font-bold">●</span>
+          <div
+            key={a.id}
+            className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-alarm/40 bg-[#2a1416] px-4 py-2 text-sm text-ink"
+          >
+            <Siren size={18} weight="bold" className="kijo-flash-fast text-alarm" aria-hidden />
             <span className="font-semibold">Team emergency</span>
-            <span>
-              · Room {r?.room ?? "?"} · {r?.name ?? "Unknown"} · {ALERT_LABEL[a.type]}
+            <span className="text-ink/90">
+              Room {r?.room ?? "?"} · {r?.name ?? "Unknown"} · {ALERT_LABEL[a.type]}
             </span>
-            <span className="ml-auto">
+            <span className="ml-auto shrink-0">
               {assisting ? (
-                <span className="inline-flex items-center gap-1 rounded bg-white/20 px-3 py-0.5 text-xs font-semibold">Assisting <Check size={14} weight="bold" aria-hidden /></span>
+                <span className="inline-flex items-center gap-1 rounded-full border border-line-2 px-3 py-0.5 text-xs font-medium">
+                  Assisting <Check size={14} weight="bold" aria-hidden />
+                </span>
               ) : (
                 <button
                   type="button"
@@ -243,7 +260,7 @@ function TeamEmergencies({
                       setBusy(null);
                     }
                   }}
-                  className="min-h-12 rounded bg-white px-5 text-sm font-bold text-red-700 hover:bg-red-50 disabled:opacity-60 lg:min-h-0 lg:px-3 lg:py-0.5 lg:text-xs"
+                  className="inline-flex h-11 items-center rounded-btn bg-brand px-4 text-sm font-semibold text-bg hover:bg-brand/85 disabled:opacity-60 lg:h-8 lg:px-3"
                 >
                   {busy === a.id ? "…" : "Assist"}
                 </button>

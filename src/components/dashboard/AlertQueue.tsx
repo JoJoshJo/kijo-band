@@ -34,25 +34,20 @@ export default function AlertQueue({
   const sorted = sortAlerts(alerts);
 
   return (
-    <section className="flex min-h-0 flex-col rounded-xl border border-slate-800 bg-slate-950/60">
-      <h2 className="flex items-center justify-between border-b border-slate-800 px-3 py-2 text-xs font-semibold tracking-widest text-slate-400">
-        PRIORITY QUEUE
-        <span className="font-mono text-slate-300">{sorted.length}</span>
+    <section className="flex min-h-0 flex-col rounded-card border border-line bg-surface">
+      <h2 className="flex items-center justify-between border-b border-line px-4 py-3">
+        <span className="label-caps">Priority queue</span>
+        <span className="num rounded-full bg-surface-2 px-2 text-xs text-ink">{sorted.length}</span>
       </h2>
       <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-2">
         {sorted.length === 0 ? (
           loading ? (
-            <p className="px-2 py-6 text-center text-sm text-slate-500">Loading…</p>
+            <p className="px-2 py-8 text-center text-sm text-muted">Loading…</p>
           ) : (
-            <div className="flex flex-col items-center gap-3 px-2 py-10 text-center">
-              <span
-                className="flex h-14 w-14 items-center justify-center rounded-full border border-emerald-500/40 bg-emerald-500/10 text-2xl text-emerald-300"
-                aria-hidden
-              >
-                <CheckCircle size={32} />
-              </span>
-              <p className="text-base font-semibold text-emerald-300">All quiet</p>
-              <p className="text-sm text-slate-400">
+            <div className="flex flex-col items-center gap-2 px-2 py-12 text-center">
+              <CheckCircle size={40} className="text-ok" aria-hidden />
+              <p className="mt-2 text-base font-semibold text-ink">All quiet</p>
+              <p className="text-sm text-muted">
                 {residentCount === undefined
                   ? "No active alerts"
                   : residentCount === 0

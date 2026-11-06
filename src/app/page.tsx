@@ -1,4 +1,4 @@
-import { QrCode, ShieldCheck, Stethoscope, Watch } from "@phosphor-icons/react/dist/ssr";
+import { CaretRight, QrCode, ShieldCheck, Stethoscope, Watch } from "@phosphor-icons/react/dist/ssr";
 import Link from "next/link";
 import { findLogo } from "@/components/dashboard/findLogo";
 
@@ -12,33 +12,34 @@ const ENTRIES = [
 export default function Home() {
   const logoSrc = findLogo();
   return (
-    <main className="flex min-h-screen flex-1 flex-col items-center justify-center gap-12 bg-bg px-8 py-16 text-slate-100">
+    <main className="flex min-h-screen flex-1 flex-col items-center justify-center gap-12 bg-bg px-4 py-16 text-ink sm:px-8">
       <div className="flex flex-col items-center gap-4">
         {logoSrc && (
           // Same treatment as the header: black-on-white source → white glyph on the dark background.
-          <span className="relative block h-28 w-28 overflow-hidden" aria-hidden>
+          <span className="relative block h-24 w-24 overflow-hidden" aria-hidden>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={logoSrc} alt="" width={112} height={112} className="h-full w-full scale-[1.4] mix-blend-screen invert" />
+            <img src={logoSrc} alt="" width={96} height={96} className="h-full w-full scale-[1.4] mix-blend-screen invert" />
           </span>
         )}
-        <h1 className="text-5xl font-black tracking-[0.3em] text-white">KIJO</h1>
-        <p className="text-xl text-slate-400">Caregiver platform</p>
+        <h1 className="text-display font-semibold tracking-[0.4em] text-ink">KIJO</h1>
+        <p className="text-base text-muted">Caregiver platform · night-shift response</p>
       </div>
 
-      <nav aria-label="Open a view" className="grid w-full max-w-4xl grid-cols-1 gap-5 sm:grid-cols-2">
+      <nav aria-label="Open a view" className="grid w-full max-w-3xl grid-cols-1 gap-4 sm:grid-cols-2">
         {ENTRIES.map((e) => (
           <Link
             key={e.href}
             href={e.href}
-            className="group flex items-center gap-5 rounded-2xl border border-slate-700 bg-slate-900/80 p-7 transition hover:border-teal-500 hover:bg-slate-800 focus-visible:border-teal-400 focus-visible:outline-none"
+            className="group flex items-center gap-4 rounded-card border border-line bg-surface p-6 transition-colors hover:border-line-2 hover:bg-surface-2"
           >
-            <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-teal-500/15 text-3xl" aria-hidden>
-              <e.icon size={32} />
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-btn border border-line-2 bg-surface-2 text-ink" aria-hidden>
+              <e.icon size={24} />
             </span>
-            <span className="flex flex-col gap-1">
-              <span className="text-2xl font-semibold text-white group-hover:text-teal-300">{e.title}</span>
-              <span className="text-sm text-slate-400">{e.text}</span>
+            <span className="flex min-w-0 flex-1 flex-col gap-1">
+              <span className="text-xl font-semibold text-ink">{e.title}</span>
+              <span className="text-sm text-muted">{e.text}</span>
             </span>
+            <CaretRight size={20} className="text-muted transition-transform group-hover:translate-x-0.5" aria-hidden />
           </Link>
         ))}
       </nav>
