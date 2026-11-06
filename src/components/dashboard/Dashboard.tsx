@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import useSWR from "swr";
 import type { Resident, StateResponse } from "@/lib/types";
 import AlertQueue from "./AlertQueue";
 import Header from "./Header";
 import { NurseBadge, NursePod } from "./NursePod";
+import PresenterPanel from "./PresenterPanel";
 import ResidentDrawer from "./ResidentDrawer";
 import { useEscalation } from "./useEscalation";
 import { useHeartRateDrift } from "./useHeartRateDrift";
@@ -31,6 +32,20 @@ export default function Dashboard({ logoSrc }: { logoSrc: string | null }) {
   const now = clientNow == null ? null : clientNow + skew;
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [showPresenter, setShowPresenter] = useState(true);
+
+  // P toggles the presenter phone frame (ignored while typing in a field).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "p" && e.key !== "P") return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const t = e.target as HTMLElement | null;
+      if (t && (t.isContentEditable || ["INPUT", "SELECT", "TEXTAREA"].includes(t.tagName))) return;
+      setShowPresenter((v) => !v);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
   const refresh = useCallback(() => void mutate(), [mutate]);
   const closeDrawer = useCallback(() => setSelectedId(null), []);
 
@@ -54,7 +69,11 @@ export default function Dashboard({ logoSrc }: { logoSrc: string | null }) {
         live={error ? "offline" : data ? "live" : "connecting"}
       />
 
-      <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_400px_300px] gap-3 p-3">
+      <div
+        className={`grid min-h-0 flex-1 gap-3 p-3 ${
+          showPresenter ? "grid-cols-[minmax(0,1fr)_400px_340px]" : "grid-cols-[minmax(0,1fr)_400px]"
+        }`}
+      >
         {/* Nurse pods */}
         <div className="flex min-h-0 flex-col gap-3 overflow-y-auto pr-1">
           {badgeNurses.length > 0 && (
@@ -85,8 +104,7 @@ export default function Dashboard({ logoSrc }: { logoSrc: string | null }) {
           onSelectResident={setSelectedId}
         />
 
-        {/* Presenter phone frame — reserved for checkpoint 5 (intentionally empty). */}
-        <aside className="rounded-xl border border-dashed border-slate-800" aria-hidden />
+        {showPresenter && <PresenterPanel residents={residents} />}
       </div>
 
       {selected && (
