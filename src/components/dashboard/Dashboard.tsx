@@ -1,12 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import useSWR from "swr";
 import type { Resident, StateResponse } from "@/lib/types";
 import AlertQueue from "./AlertQueue";
 import Header from "./Header";
 import { NurseBadge, NursePod } from "./NursePod";
-import PresenterPanel from "./PresenterPanel";
 import QrModal from "./QrModal";
 import ResetModal from "./ResetModal";
 import { useAlarmSounds } from "./useAlarmSounds";
@@ -14,6 +13,7 @@ import ResidentDrawer from "./ResidentDrawer";
 import { useEscalation } from "./useEscalation";
 import { useHeartRateDrift } from "./useHeartRateDrift";
 import { useNow } from "./util";
+import { useViewShortcut } from "./views";
 
 const fetcher = async (url: string): Promise<StateResponse> => {
   const res = await fetch(url, { cache: "no-store" });
@@ -35,22 +35,10 @@ export default function Dashboard({ logoSrc }: { logoSrc: string | null }) {
   const now = clientNow == null ? null : clientNow + skew;
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [showPresenter, setShowPresenter] = useState(true);
   const [modal, setModal] = useState<"qr" | "reset" | null>(null);
   const closeModal = useCallback(() => setModal(null), []);
 
-  // P toggles the presenter phone frame (ignored while typing in a field).
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "p" && e.key !== "P") return;
-      if (e.metaKey || e.ctrlKey || e.altKey) return;
-      const t = e.target as HTMLElement | null;
-      if (t && (t.isContentEditable || ["INPUT", "SELECT", "TEXTAREA"].includes(t.tagName))) return;
-      setShowPresenter((v) => !v);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  useViewShortcut("nurse");
   const refresh = useCallback(() => void mutate(), [mutate]);
   const closeDrawer = useCallback(() => setSelectedId(null), []);
 
@@ -70,6 +58,7 @@ export default function Dashboard({ logoSrc }: { logoSrc: string | null }) {
     <div className="flex h-screen flex-col bg-[#070b14] text-slate-100">
       <Header
         logoSrc={logoSrc}
+        view="nurse"
         nursesOn={nurses.length}
         openCount={alerts.filter((a) => a.status === "open").length}
         live={error ? "offline" : data ? "live" : "connecting"}
@@ -103,11 +92,7 @@ export default function Dashboard({ logoSrc }: { logoSrc: string | null }) {
         }
       />
 
-      <div
-        className={`grid min-h-0 flex-1 gap-3 p-3 ${
-          showPresenter ? "grid-cols-[minmax(0,1fr)_400px_340px]" : "grid-cols-[minmax(0,1fr)_400px]"
-        }`}
-      >
+      <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_460px] gap-3 p-3">
         {/* Nurse pods */}
         <div className="flex min-h-0 flex-col gap-3 overflow-y-auto pr-1">
           {badgeNurses.length > 0 && (
@@ -137,8 +122,6 @@ export default function Dashboard({ logoSrc }: { logoSrc: string | null }) {
           onChanged={refresh}
           onSelectResident={setSelectedId}
         />
-
-        {showPresenter && <PresenterPanel residents={residents} />}
       </div>
 
       {modal === "qr" && <QrModal onClose={closeModal} />}

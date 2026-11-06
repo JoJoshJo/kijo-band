@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { ViewToggle, type View } from "./views";
 
 // Demo night clock: starts at 03:12 AM when the dashboard opens and advances in real time.
 const NIGHT_START_SECONDS = 3 * 3600 + 12 * 60;
@@ -34,12 +35,14 @@ function NightClock() {
 
 export default function Header({
   logoSrc,
+  view,
   nursesOn,
   openCount,
   live,
   actions,
 }: {
   logoSrc: string | null;
+  view: View;
   nursesOn: number;
   openCount: number;
   live: "live" | "offline" | "connecting";
@@ -52,6 +55,7 @@ export default function Header({
         <img src={logoSrc} alt="Kijo" className="h-8 w-8" />
       ) : null}
       <span className="text-xl font-black tracking-[0.3em] text-white">KIJO</span>
+      <ViewToggle current={view} />
       <span className="text-slate-400">Night Shift</span>
       <NightClock />
       <span className="text-sm text-slate-400">

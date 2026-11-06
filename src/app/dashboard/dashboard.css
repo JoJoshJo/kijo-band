@@ -84,3 +84,18 @@
     animation: none;
   }
 }
+
+/* Patient view toast */
+@keyframes kijo-toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.kijo-toast {
+  animation: kijo-toast-in 0.25s ease-out;
+}

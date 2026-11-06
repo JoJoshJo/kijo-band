@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Alert, AlertPriority } from "@/lib/types";
+import { useSessionValue } from "./useSessionValue";
 
 // Three distinct Web Audio tones (no audio files):
 //   P1 urgent — 3 + 2 burst of high square beeps (IEC 60601-1-8 high-priority rhythm)
@@ -48,7 +49,8 @@ export function useAlarmSounds(alerts: Alert[] | undefined) {
   const ctxRef = useRef<AudioContext | null>(null);
   const seen = useRef<Set<string> | null>(null);
   const unlockedThisGesture = useRef(false); // so the click that enables sound doesn't also mute it
-  const [muted, setMuted] = useState(false);
+  const [mutedRaw, setMutedRaw] = useSessionValue("kijo-muted", "0"); // survives Nurse/Patient view switches
+  const muted = mutedRaw === "1";
   const [ready, setReady] = useState(false); // browsers need a user gesture before audio can play
 
   // Unlock audio on the first click / key press anywhere.
@@ -58,11 +60,19 @@ export function useAlarmSounds(alerts: Alert[] | undefined) {
       unlockedThisGesture.current = ctxRef.current.state !== "running";
       void ctxRef.current.resume().then(() => setReady(ctxRef.current?.state === "running"));
     };
+    // Coming back from Patient view: the tab already had a user gesture, so audio can start right away.
+    const nav = navigator as Navigator & { userActivation?: { hasBeenActive: boolean } };
+    if (nav.userActivation?.hasBeenActive) {
+      ctxRef.current = new AudioContext();
+      void ctxRef.current.resume().then(() => setReady(ctxRef.current?.state === "running"));
+    }
     window.addEventListener("pointerdown", unlock);
     window.addEventListener("keydown", unlock);
     return () => {
       window.removeEventListener("pointerdown", unlock);
       window.removeEventListener("keydown", unlock);
+      void ctxRef.current?.close(); // browsers cap live AudioContexts; free it when leaving the view
+      ctxRef.current = null;
     };
   }, []);
 
@@ -86,7 +96,7 @@ export function useAlarmSounds(alerts: Alert[] | undefined) {
       unlockedThisGesture.current = false;
       return;
     }
-    setMuted((m) => !m);
-  }, []);
+    setMutedRaw(muted ? "0" : "1");
+  }, [muted, setMutedRaw]);
   return { muted, ready, toggleMute };
 }
