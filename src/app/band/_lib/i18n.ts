@@ -68,6 +68,11 @@ export interface BandStrings {
   motionMoving: string;
   motionStill: string;
   motionLying: string;
+  /** Simplified band: Talk button, corner language icon, banner sheet */
+  tapToTalk: string;
+  voiceUnavailable: string;
+  language: string;
+  close: string;
 }
 
 export const STRINGS: Record<Language, BandStrings> = {
@@ -82,7 +87,7 @@ export const STRINGS: Record<Language, BandStrings> = {
     bpm: "bpm",
     help: "HELP",
     pain: "Pain",
-    bathroom: "Bathroom",
+    bathroom: "Toilet",
     water: "Water",
     needHelp: "Help",
     sending: "Sending…",
@@ -129,6 +134,10 @@ export const STRINGS: Record<Language, BandStrings> = {
     motionMoving: "Moving",
     motionStill: "Still",
     motionLying: "Lying down",
+    tapToTalk: "Tap and talk",
+    voiceUnavailable: "Voice isn't available here — please use the buttons.",
+    language: "Language",
+    close: "Close",
   },
   fr: {
     loading: "Chargement…",
@@ -188,6 +197,10 @@ export const STRINGS: Record<Language, BandStrings> = {
     motionMoving: "En mouvement",
     motionStill: "Au repos",
     motionLying: "Allongé·e",
+    tapToTalk: "Touchez et parlez",
+    voiceUnavailable: "La voix n’est pas disponible ici — utilisez les boutons.",
+    language: "Langue",
+    close: "Fermer",
   },
   es: {
     loading: "Cargando…",
@@ -247,6 +260,10 @@ export const STRINGS: Record<Language, BandStrings> = {
     motionMoving: "En movimiento",
     motionStill: "En reposo",
     motionLying: "Acostado/a",
+    tapToTalk: "Toque y hable",
+    voiceUnavailable: "La voz no está disponible aquí — use los botones.",
+    language: "Idioma",
+    close: "Cerrar",
   },
 };
 
