@@ -11,6 +11,7 @@ import QrModal from "./QrModal";
 import ResetModal from "./ResetModal";
 import { useAlarmSounds } from "./useAlarmSounds";
 import ResidentDrawer from "./ResidentDrawer";
+import { useDemoShortcuts } from "./useDemoShortcuts";
 import { useEscalation } from "./useEscalation";
 import { useHeartRateDrift } from "./useHeartRateDrift";
 import { useNow } from "./util";
@@ -47,6 +48,7 @@ export default function Dashboard({ logoSrc }: { logoSrc: string | null }) {
   const nurses = data?.nurses ?? [];
   const alerts = data?.alerts ?? [];
   useEscalation(alerts, now, refresh);
+  useDemoShortcuts(residents, alerts);
   const sound = useAlarmSounds(data?.alerts);
   const heartRateOf = useCallback((r: Resident) => displayHr(r, clientNow), [displayHr, clientNow]);
 
