@@ -4,6 +4,7 @@ import { useState } from "react";
 import useSWR from "swr";
 import type { NightReport } from "@/app/api/report/route";
 import type { AlertPriority } from "@/lib/types";
+import HandoffPanel from "./HandoffPanel";
 import Modal from "./Modal";
 import { ALERT_LABEL, PRIORITY, formatDuration } from "./util";
 
@@ -120,6 +121,7 @@ export default function NightReportModal({ onClose }: { onClose: () => void }) {
             <Stat label="ESCALATIONS" value={String(data.escalations)} sub="to charge nurse" />
           </div>
           <PriorityBars byPriority={data.byPriority} />
+          <HandoffPanel />
           <p className="text-[11px] text-slate-500">All alerts since the last demo reset · fictional demo data</p>
         </div>
       )}
