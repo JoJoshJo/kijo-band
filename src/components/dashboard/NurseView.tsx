@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, SpeakerHigh, SpeakerSlash } from "@phosphor-icons/react";
+import { Check } from "@phosphor-icons/react";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -12,6 +12,7 @@ import ConnectionBanner from "./ConnectionBanner";
 import Header from "./Header";
 import ResidentDrawer from "./ResidentDrawer";
 import ResidentTile from "./ResidentTile";
+import SoundToggle from "./SoundToggle";
 import { useAlarmSounds } from "./useAlarmSounds";
 import { useDemoShortcuts } from "./useDemoShortcuts";
 import { useEscalation } from "./useEscalation";
@@ -65,7 +66,12 @@ export default function NurseView({ nurseId, logoSrc }: { nurseId: string; logoS
 
   useEscalation(allAlerts, now, refresh); // server prevents double escalation across tabs
   useDemoShortcuts(residents, allAlerts); // 1/2/3 → this nurse's residents only
-  const sound = useAlarmSounds(myAlerts); // her alerts only
+  const teamAlerts = useMemo(
+    () => (data ? data.alerts.filter((a) => a.assignedNurseId !== nurseId) : undefined),
+    [data, nurseId],
+  );
+  // Her own P1s ring until acknowledged; another nurse's new P1 plays one soft tone.
+  const sound = useAlarmSounds(myAlerts, teamAlerts);
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const closeDrawer = useCallback(() => setSelectedId(null), []);
@@ -125,19 +131,7 @@ export default function NurseView({ nurseId, logoSrc }: { nurseId: string; logoS
           )
         }
         actions={
-          <button
-            type="button"
-            onClick={sound.toggleMute}
-            title={sound.ready ? "Toggle alarm sounds" : "Browsers need one click before sound can play"}
-            className={`rounded border px-3 py-1 text-sm ${
-              sound.muted ? "border-slate-700 text-slate-500" : "border-slate-600 text-slate-200"
-            } hover:bg-slate-800`}
-          >
-            <span className="inline-flex items-center gap-1.5">
-                {sound.muted ? <SpeakerSlash size={18} aria-hidden /> : <SpeakerHigh size={18} aria-hidden />}
-                {sound.muted ? "Muted" : sound.ready ? "Sound on" : "Click to enable sound"}
-              </span>
-          </button>
+          <SoundToggle sound={sound} />
         }
       />
 

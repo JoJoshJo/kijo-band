@@ -1,6 +1,5 @@
 "use client";
 
-import { SpeakerHigh, SpeakerSlash } from "@phosphor-icons/react";
 
 import { useCallback, useState } from "react";
 import useSWR from "swr";
@@ -12,6 +11,7 @@ import NightReportModal from "./NightReportModal";
 import NurseBar from "./NurseBar";
 import QrModal from "./QrModal";
 import ResetModal from "./ResetModal";
+import SoundToggle from "./SoundToggle";
 import { useAlarmSounds } from "./useAlarmSounds";
 import ResidentDrawer from "./ResidentDrawer";
 import { AutopilotPill, useAutopilot } from "./useAutopilot";
@@ -84,19 +84,7 @@ export default function Dashboard({ logoSrc }: { logoSrc: string | null }) {
         live={error ? "offline" : data ? "live" : "connecting"}
         actions={
           <>
-            <button
-              type="button"
-              onClick={sound.toggleMute}
-              title={sound.ready ? "Toggle alarm sounds" : "Browsers need one click before sound can play"}
-              className={`rounded border px-3 py-1 text-sm ${
-                sound.muted ? "border-slate-700 text-slate-500" : "border-slate-600 text-slate-200"
-              } hover:bg-slate-800`}
-            >
-              <span className="inline-flex items-center gap-1.5">
-                {sound.muted ? <SpeakerSlash size={18} aria-hidden /> : <SpeakerHigh size={18} aria-hidden />}
-                {sound.muted ? "Muted" : sound.ready ? "Sound on" : "Click to enable sound"}
-              </span>
-            </button>
+            <SoundToggle sound={sound} />
             <button
               type="button"
               onClick={() => setModal("report")}
