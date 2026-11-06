@@ -18,12 +18,14 @@ export default function ResidentTile({
   const p = alert ? PRIORITY[alert.priority] : null;
   // Acknowledged alarms stay colored but stop flashing.
   const flash = alert && alert.status === "open" ? p?.flash : "";
+  // Out-of-range HR (same thresholds as the band's vitals rule) — judged on the stored value, not the drift.
+  const hrWarning = resident.heartRate > 130 || resident.heartRate < 45;
 
   return (
     <button
       type="button"
       onClick={() => onSelect(resident.id)}
-      aria-label={`Room ${resident.room}, ${resident.name}, ${heartRate} bpm${
+      aria-label={`Room ${resident.room}, ${resident.name}, ${heartRate} bpm${hrWarning ? " (HR warning)" : ""}${
         alert ? `, ${PRIORITY[alert.priority].label} ${ALERT_LABEL[alert.type]}` : ", OK"
       } — open quick info`}
       className={`relative rounded-lg border-2 bg-slate-900/80 p-2.5 text-left transition hover:bg-slate-800/80 ${
@@ -37,9 +39,18 @@ export default function ResidentTile({
       <div className="truncate text-sm font-medium text-slate-100">{resident.name}</div>
       <PulseLine heartRate={resident.heartRate} color={p ? p.stroke : OK_STROKE} />
       <div className="flex items-center justify-between">
-        <span className={`font-mono text-lg leading-none ${p ? p.text : "text-emerald-400"}`}>
+        <span
+          className={`font-mono text-lg leading-none ${
+            hrWarning ? "text-yellow-300" : p ? p.text : "text-emerald-400"
+          }`}
+        >
           {heartRate}
           <span className="ml-0.5 text-[10px] text-slate-500">bpm</span>
+          {hrWarning && (
+            <span className="ml-1 rounded border border-yellow-300 px-1 align-middle text-[9px] font-bold text-yellow-300">
+              ⚠ HR
+            </span>
+          )}
         </span>
         {alert && p ? (
           <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold text-slate-950 ${p.bg}`}>
