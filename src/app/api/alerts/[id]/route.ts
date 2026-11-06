@@ -1,8 +1,9 @@
 import type { NextRequest } from "next/server";
 import { getSql, rowToAlert } from "@/lib/db";
+import { clientIp, rateLimit, tooManyRequests } from "@/lib/rateLimit";
 
 // PATCH /api/alerts/:id — dashboard actions on an alert.
-// Body: { action: "acknowledge" } | { action: "resolve" } | { action: "assist", nurseId: string }
+// Body: { action: "acknowledge", nurseId?: string } | { action: "resolve" } | { action: "assist", nurseId: string }
 
 const ID_RE = /^[A-Za-z0-9-]{1,64}$/;
 const ACTIONS = ["acknowledge", "resolve", "assist"] as const;
@@ -18,6 +19,9 @@ function bad(status: number, error: string) {
 export async function PATCH(req: NextRequest, ctx: RouteContext<"/api/alerts/[id]">) {
   const { id } = await ctx.params;
   if (!ID_RE.test(id)) return bad(400, "Invalid alert id");
+  // Dashboard clicks: 60 per 10s per IP is far above human speed (several screens may share an IP).
+  const wait = rateLimit(`alerts-patch:${clientIp(req)}`, 60, 10_000);
+  if (wait) return tooManyRequests(wait);
 
   const body: unknown = await req.json().catch(() => null);
   if (!body || typeof body !== "object") return bad(400, "Body must be a JSON object");
@@ -34,7 +38,7 @@ export async function PATCH(req: NextRequest, ctx: RouteContext<"/api/alerts/[id
     const now = Date.now();
 
     const [alert] = await sql`
-      SELECT id, status, priority, resident_id, assigned_nurse_id, assisting_nurse_ids
+      SELECT id, status, priority, resident_id, assigned_nurse_id, escalated_to, assisting_nurse_ids
       FROM alerts WHERE id = ${id}`;
     if (!alert) return bad(404, "Alert not found");
     if (alert.status === "resolved") return bad(409, "Alert is already resolved");
@@ -44,12 +48,26 @@ export async function PATCH(req: NextRequest, ctx: RouteContext<"/api/alerts/[id
 
     switch (action as Action) {
       case "acknowledge": {
+        // Whoever taps Acknowledge responds: the nurse view sends its nurseId; the Charge view sends
+        // none → the charge nurse if escalated, else the assigned nurse (same as /api/ack).
+        let responder = (alert.escalated_to as string | null) ?? assignedNurseId;
+        if (nurseId) {
+          // Only the nurses Resolve will free again: assigned, or the charge nurse it escalated to.
+          if (nurseId !== assignedNurseId && nurseId !== alert.escalated_to) {
+            return bad(400, "Only the assigned or escalated-to nurse can acknowledge");
+          }
+          responder = nurseId;
+        }
         if (alert.status === "open") {
-          await sql.transaction([
-            sql`UPDATE alerts SET status = 'acknowledged', acknowledged_at = ${now}
-                WHERE id = ${id} AND status = 'open'`,
-            sql`UPDATE nurses SET status = 'responding' WHERE id = ${assignedNurseId}`,
-          ]);
+          // Conditional: only the first acknowledge (from any tab or phone) marks a nurse responding.
+          await sql`
+            WITH a AS (
+              UPDATE alerts SET status = 'acknowledged', acknowledged_at = ${now}
+              WHERE id = ${id} AND status = 'open'
+              RETURNING id
+            )
+            UPDATE nurses SET status = 'responding'
+            WHERE id = ${responder} AND EXISTS (SELECT 1 FROM a)`;
         }
         break; // already acknowledged → idempotent no-op
       }
@@ -66,12 +84,15 @@ export async function PATCH(req: NextRequest, ctx: RouteContext<"/api/alerts/[id
                   ELSE 'attention' END
                 FROM alerts WHERE resident_id = ${residentId} AND status <> 'resolved')
               WHERE id = ${residentId}`,
-          // Nurse stays "responding" only while they still have an acknowledged alert.
-          sql`UPDATE nurses SET status = CASE
-                WHEN EXISTS (SELECT 1 FROM alerts
-                             WHERE assigned_nurse_id = ${assignedNurseId} AND status = 'acknowledged')
-                THEN 'responding' ELSE 'available' END
-              WHERE id = ${assignedNurseId}`,
+          // Free the nurse(s) on this alert — assigned and, if escalated, the charge nurse — unless
+          // they still have another acknowledged alert (same rule as /api/alert/[id]/cancel).
+          sql`UPDATE nurses n SET status = 'available'
+              WHERE n.status = 'responding'
+                AND n.id IN (SELECT assigned_nurse_id FROM alerts WHERE id = ${id}
+                             UNION SELECT escalated_to FROM alerts WHERE id = ${id} AND escalated_to IS NOT NULL)
+                AND NOT EXISTS (SELECT 1 FROM alerts o
+                                WHERE o.status = 'acknowledged' AND o.id <> ${id}
+                                  AND (o.assigned_nurse_id = n.id OR o.escalated_to = n.id))`,
         ]);
         break;
       }

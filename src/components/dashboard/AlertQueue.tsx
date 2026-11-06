@@ -11,6 +11,7 @@ export default function AlertQueue({
   now,
   onChanged,
   onSelectResident,
+  actingNurseId,
 }: {
   alerts: Alert[];
   residents: Resident[];
@@ -18,6 +19,8 @@ export default function AlertQueue({
   now: number | null;
   onChanged: () => void;
   onSelectResident: (id: string) => void;
+  /** Nurse view: whoever taps Acknowledge here becomes responding. Unset on the Charge view. */
+  actingNurseId?: string;
 }) {
   const residentById = new Map(residents.map((r) => [r.id, r]));
   const sorted = sortAlerts(alerts);
@@ -42,6 +45,7 @@ export default function AlertQueue({
               now={now}
               onChanged={onChanged}
               onSelectResident={onSelectResident}
+              actingNurseId={actingNurseId}
             />
           ))
         )}

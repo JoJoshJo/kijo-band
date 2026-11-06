@@ -36,15 +36,13 @@ function NightClock() {
 export default function Header({
   logoSrc,
   view,
-  nursesOn,
-  openCount,
+  info,
   live,
   actions,
 }: {
   logoSrc: string | null;
   view: View;
-  nursesOn: number;
-  openCount: number;
+  info?: React.ReactNode; // view-specific context after the clock
   live: "live" | "offline" | "connecting";
   actions?: React.ReactNode;
 }) {
@@ -71,12 +69,7 @@ export default function Header({
       <ViewToggle current={view} />
       <span className="text-slate-400">Night Shift</span>
       <NightClock />
-      <span className="text-sm text-slate-400">
-        Nurses on: <span className="text-white">{nursesOn}</span>
-      </span>
-      <span className="text-sm text-slate-400">
-        Open alerts: <span className="font-mono text-white">{openCount}</span>
-      </span>
+      {info}
       <div className="ml-auto flex items-center gap-2">{actions}</div>
       <span
         className={`text-sm ${

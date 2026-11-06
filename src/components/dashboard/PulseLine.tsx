@@ -10,17 +10,35 @@ const beat = (x: number) =>
 
 const PATH = "M0 20 " + Array.from({ length: BEATS }, (_, i) => beat(i * BEAT_W)).join(" ");
 
-export default function PulseLine({ heartRate, color }: { heartRate: number; color: string }) {
+export default function PulseLine({
+  heartRate,
+  color,
+  height = 32,
+}: {
+  heartRate: number;
+  color: string;
+  height?: number;
+}) {
   const hr = Math.min(220, Math.max(30, heartRate || 60));
   return (
-    <div className="h-8 w-full overflow-hidden" aria-hidden>
+    <div className="w-full overflow-hidden" style={{ height }} aria-hidden>
       <svg
         width={BEAT_W * BEATS}
-        height={32}
+        height={height}
+        viewBox={`0 0 ${BEAT_W * BEATS} 32`}
+        preserveAspectRatio="none"
         className="kijo-pulse-scroll"
         style={{ animationDuration: `${60 / hr}s`, ["--kijo-beat" as string]: `-${BEAT_W}px` }}
       >
-        <path d={PATH} fill="none" stroke={color} strokeWidth={1.75} strokeLinejoin="round" opacity={0.9} />
+        <path
+          d={PATH}
+          fill="none"
+          stroke={color}
+          strokeWidth={height > 32 ? 2.5 : 1.75}
+          strokeLinejoin="round"
+          vectorEffect="non-scaling-stroke"
+          opacity={0.9}
+        />
       </svg>
     </div>
   );

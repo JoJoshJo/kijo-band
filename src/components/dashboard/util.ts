@@ -24,6 +24,8 @@ export const ALERT_LABEL: Record<AlertType, string> = {
   need_water: "Water",
   need_help: "Help",
   vitals: "Vitals",
+  inactivity: "No movement",
+  up_at_night: "Resident is up — fall risk",
 };
 
 export const ALERT_ICON: Record<AlertType, string> = {
@@ -35,6 +37,8 @@ export const ALERT_ICON: Record<AlertType, string> = {
   need_water: "💧",
   need_help: "🙋",
   vitals: "♥",
+  inactivity: "⏸️",
+  up_at_night: "🚶",
 };
 
 export const ESCALATION_MS = 90_000;

@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS residents (
   status             TEXT NOT NULL DEFAULT 'ok' CHECK (status IN ('ok', 'attention', 'emergency')),
   heart_rate         INTEGER NOT NULL,
   last_motion_at     BIGINT NOT NULL,
+  motion_state       TEXT CHECK (motion_state IN ('moving', 'still', 'lying')),  -- band motion monitor; NULL = unknown
   is_guest           BOOLEAN NOT NULL DEFAULT FALSE,
   device_id          TEXT,               -- guest flow (/join); server-only
   created_at         BIGINT NOT NULL
@@ -37,7 +38,7 @@ CREATE TABLE IF NOT EXISTS residents (
 CREATE TABLE IF NOT EXISTS alerts (
   id                  TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
   resident_id         TEXT NOT NULL REFERENCES residents(id) ON DELETE CASCADE,
-  type                TEXT NOT NULL CHECK (type IN ('fall', 'voice', 'sos_shake', 'need_pain', 'need_bathroom', 'need_water', 'need_help', 'vitals')),
+  type                TEXT NOT NULL CHECK (type IN ('fall', 'voice', 'sos_shake', 'need_pain', 'need_bathroom', 'need_water', 'need_help', 'vitals', 'inactivity', 'up_at_night')),
   priority            SMALLINT NOT NULL CHECK (priority IN (1, 2, 3)),
   summary             TEXT NOT NULL,
   transcript          TEXT,
@@ -55,3 +56,8 @@ CREATE TABLE IF NOT EXISTS alerts (
 
 CREATE INDEX IF NOT EXISTS alerts_status_idx ON alerts (status);
 CREATE INDEX IF NOT EXISTS alerts_resident_created_idx ON alerts (resident_id, created_at DESC);
+
+-- Migration for databases created before motion_state / inactivity / up_at_night (idempotent).
+ALTER TABLE residents ADD COLUMN IF NOT EXISTS motion_state TEXT CHECK (motion_state IN ('moving', 'still', 'lying'));
+ALTER TABLE alerts DROP CONSTRAINT IF EXISTS alerts_type_check;
+ALTER TABLE alerts ADD CONSTRAINT alerts_type_check CHECK (type IN ('fall', 'voice', 'sos_shake', 'need_pain', 'need_bathroom', 'need_water', 'need_help', 'vitals', 'inactivity', 'up_at_night'));

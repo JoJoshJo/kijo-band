@@ -7,7 +7,7 @@ import Header from "@/components/dashboard/Header";
 import { useEscalation } from "@/components/dashboard/useEscalation";
 import { useSessionValue } from "@/components/dashboard/useSessionValue";
 import { ALERT_LABEL, PRIORITY, useNow } from "@/components/dashboard/util";
-import { useViewShortcut } from "@/components/dashboard/views";
+import { nurseHref, useViewShortcut } from "@/components/dashboard/views";
 import type { Alert, StateResponse } from "@/lib/types";
 
 const fetcher = async (url: string): Promise<StateResponse> => {
@@ -70,8 +70,11 @@ export default function PatientView({ logoSrc }: { logoSrc: string | null }) {
       <Header
         logoSrc={logoSrc}
         view="patient"
-        nursesOn={data?.nurses.length ?? 0}
-        openCount={alerts.filter((a) => a.status === "open").length}
+        info={
+          <span className="text-sm text-slate-400">
+            Open alerts: <span className="font-mono text-white">{alerts.filter((a) => a.status === "open").length}</span>
+          </span>
+        }
         live={error ? "offline" : data ? "live" : "connecting"}
       />
 
@@ -118,7 +121,7 @@ export default function PatientView({ logoSrc }: { logoSrc: string | null }) {
             Alert sent · {ALERT_LABEL[toast.type]}
           </span>
           <Link
-            href="/dashboard"
+            href={nurseHref(toast.assignedNurseId)}
             className="rounded bg-teal-500 px-3 py-1.5 text-sm font-semibold text-slate-950 hover:bg-teal-400"
           >
             View in Nurse view →

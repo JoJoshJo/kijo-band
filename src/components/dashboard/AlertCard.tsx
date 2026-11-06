@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { RESIDENT_OK_SUFFIX, residentSaysOk } from "@/lib/detection/alertRules";
 import type { Alert, Nurse, Resident } from "@/lib/types";
 import CountdownRing from "./CountdownRing";
 import {
@@ -21,6 +22,7 @@ export default function AlertCard({
   now,
   onChanged,
   onSelectResident,
+  actingNurseId,
 }: {
   alert: Alert;
   resident?: Resident;
@@ -28,6 +30,7 @@ export default function AlertCard({
   now: number; // server-aligned ms
   onChanged: () => void;
   onSelectResident: (id: string) => void;
+  actingNurseId?: string;
 }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -58,7 +61,7 @@ export default function AlertCard({
 
   return (
     <article
-      className={`kijo-card-enter relative overflow-hidden rounded-lg bg-slate-900/90 p-3 pl-4 ${
+      className={`kijo-card-enter relative shrink-0 overflow-hidden rounded-lg bg-slate-900/90 p-3 pl-4 ${
         escalatedTo ? `border-2 border-red-500 ${isOpen ? "kijo-border-flash" : ""}` : "border border-slate-700"
       }`}
     >
@@ -98,7 +101,16 @@ export default function AlertCard({
         </div>
       </div>
 
-      <p className="mt-1.5 text-sm text-slate-200">{alert.summary}</p>
+      {alert.priority === 1 && residentSaysOk(alert.summary) ? (
+        <>
+          <span className="mt-1.5 inline-flex items-center gap-1.5 rounded border border-emerald-500/60 bg-emerald-500/15 px-2 py-0.5 text-xs font-semibold text-emerald-300">
+            ✓ Resident says OK — still check
+          </span>
+          <p className="mt-1 text-sm text-slate-200">{alert.summary.slice(0, -RESIDENT_OK_SUFFIX.length)}</p>
+        </>
+      ) : (
+        <p className="mt-1.5 text-sm text-slate-200">{alert.summary}</p>
+      )}
       {alert.transcript && <p className="mt-1 text-sm italic text-slate-400">“{alert.transcript}”</p>}
 
       <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400">
@@ -127,7 +139,7 @@ export default function AlertCard({
           <button
             type="button"
             disabled={busy !== null}
-            onClick={() => run("acknowledge")}
+            onClick={() => run("acknowledge", actingNurseId)}
             className="rounded bg-teal-600 px-3 py-1 text-sm font-semibold text-white hover:bg-teal-500 disabled:opacity-50"
           >
             {busy === "acknowledge" ? "…" : "Acknowledge"}
