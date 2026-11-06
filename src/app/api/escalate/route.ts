@@ -1,4 +1,5 @@
 import { getSql, rowToAlert } from "@/lib/db";
+import { sendNtfy } from "@/lib/notify";
 
 // POST /api/escalate { alertId } — called by the dashboard when an OPEN alert's 90s ring runs out.
 // Idempotent: escalates at most once, only while the alert is still open, and only after 90s.
@@ -32,8 +33,11 @@ export async function POST(req: Request) {
     );
 
     if (updated.length > 0) {
-      // Push to the charge nurse is wired by Session B (src/lib/notify.ts) — call it here when it lands.
-      return Response.json({ escalated: true, alert: rowToAlert(updated[0]) });
+      const alert = rowToAlert(updated[0]);
+      // Second push, tagged ⚠️ ESCALATED. Only the request that won the UPDATE sends it, so never twice.
+      // Awaited so serverless doesn't cut it off; sendNtfy never throws and times out after 3s.
+      await sendNtfy({ alert, escalated: true });
+      return Response.json({ escalated: true, alert });
     }
 
     const [current] = await sql.query(`SELECT ${ALERT_COLUMNS} FROM alerts WHERE id = $1`, [alertId]);
